@@ -82,7 +82,10 @@ const Sidebar = ({ user }) => {
                         <p className="text-[10px] font-bold text-gray-500 truncate mt-1">{user.email}</p>
                     </div>
                     <button
-                        onClick={() => window.location.href = 'http://localhost:3000/api/auth/logout'}
+                        onClick={() => {
+                            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                            window.location.href = `${apiUrl}/api/auth/logout`;
+                        }}
                         className="p-1 border-2 border-black hover:bg-black hover:text-white transition-colors"
                     >
                         <LogOut size={14} />
