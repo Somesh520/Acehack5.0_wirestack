@@ -212,7 +212,7 @@ RULES:
 2. Write REAL, working, professional code that would impress hackathon judges.
 3. The code should be for: "${idea}" using stack: ${stack}.
 ${isHtml ? `4. This is the MAIN DEMO FILE. You must create a FULLY FUNCTIONAL, INTERACTIVE single-page application using:
-   - Tailwind CDN (https://cdn.tailwindcss.com) for styling
+   - Tailwind CDN for styling. You MUST include exactly this line inside the <head> tag: <script src="https://cdn.tailwindcss.com"></script>
    - Vanilla JavaScript for ALL interactivity
    
    THIS MUST BE A WORKING APP, NOT JUST A LANDING PAGE. Include ALL of these:
