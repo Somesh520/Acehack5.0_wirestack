@@ -8,7 +8,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const configurePassport = require('./config/passport');
 const authRoutes = require('./routes/authRoutes');
-const MongoStore = require('connect-mongo');
+const MongoStore = require('connect-mongo').default;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
