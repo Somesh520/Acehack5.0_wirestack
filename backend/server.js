@@ -39,13 +39,24 @@ app.use(session({
         mongoUrl: process.env.MONGODB_URI,
         ttl: 24 * 60 * 60 // 1 day
     }),
-    proxy: true, // Required for proxy support
+    proxy: true, // Trust the reverse proxy when setting secure cookies (via app.set)
     cookie: {
-        secure: isHttpsMode, // Force secure cookies if we expect HTTPS on the origin
-        sameSite: isHttpsMode ? 'none' : 'lax', // Allow cross-domain over HTTPS
+        secure: true, // MUST be true for sameSite 'none', force it regardless of NODE_ENV
+        sameSite: 'none', // Allow cross-domain over HTTPS
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
+
+// Cookie debugging middleware
+app.use((req, res, next) => {
+    console.log(`[COOKIE IN] -> ${req.headers.cookie ? 'Present' : 'None'} | Origin: ${req.headers.origin || req.headers.referer || 'Unknown'}`);
+    const originalSend = res.send;
+    res.send = function () {
+        console.log(`[COOKIE OUT] <- ${res.get('Set-Cookie') || 'None'}`);
+        return originalSend.apply(res, arguments);
+    };
+    next();
+});
 
 // Passport Config
 app.use(passport.initialize());
