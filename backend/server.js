@@ -8,6 +8,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const configurePassport = require('./config/passport');
 const authRoutes = require('./routes/authRoutes');
+const MongoStore = require('connect-mongo');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,9 +33,14 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'wirestack_secret_key_123',
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        ttl: 24 * 60 * 60 // 1 day
+    }),
     proxy: true, // Required for proxy support
     cookie: {
         secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
