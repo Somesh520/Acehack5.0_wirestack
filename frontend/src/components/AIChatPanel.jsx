@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles, Zap } from 'lucide-react';
 
 const AIChatPanel = ({ onSuggestComponents, messages, setMessages }) => {
@@ -49,6 +49,7 @@ const AIChatPanel = ({ onSuggestComponents, messages, setMessages }) => {
 
             const data = await res.json();
             const reply = data.reply || 'Oops! Something went wrong.';
+            const thoughtProcess = data.thoughtProcess || null;
 
             // Parse components from AI response
             const components = parseComponents(reply);
@@ -56,7 +57,7 @@ const AIChatPanel = ({ onSuggestComponents, messages, setMessages }) => {
                 onSuggestComponents(components);
             }
 
-            setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: reply, thoughtProcess }]);
         } catch (err) {
             console.error('AI Chat Error:', err);
             setMessages(prev => [...prev, {
@@ -96,6 +97,12 @@ const AIChatPanel = ({ onSuggestComponents, messages, setMessages }) => {
                 </div>
                 <div className={`flex-1 min-w-0 ${isBot ? '' : 'text-right'}`}>
                     <div className={`inline-block text-left p-3 border-2 border-black text-xs font-bold leading-relaxed ${isBot ? 'bg-white' : 'bg-[#FFD700]'}`}>
+                        {msg.thoughtProcess && (
+                            <div className="mb-3 p-2 bg-gray-100 border border-gray-300 rounded text-[10px] text-gray-500 font-mono">
+                                <span className="block font-black text-gray-700 mb-1 border-b border-gray-300 pb-1">🧠 AGENT THOUGHT PROCESS</span>
+                                {msg.thoughtProcess}
+                            </div>
+                        )}
                         {cleanText.split('\n').map((line, i) => (
                             <p key={i} className="mb-1">{line.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')}</p>
                         ))}

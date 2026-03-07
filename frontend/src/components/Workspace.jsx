@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
     ReactFlow,
     addEdge,
@@ -7,7 +7,6 @@ import {
     MiniMap,
     applyEdgeChanges,
     applyNodeChanges,
-    Panel,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import Sidebar from './Sidebar';
@@ -128,77 +127,105 @@ const Workspace = () => {
         setSelectedNode(null);
     };
 
+    const [generationStatus, setGenerationStatus] = useState(null);
+
     const handleGenerateProject = async () => {
         setIsGenerating(true);
+        setGeneratedFiles(null);
+        setGenerationStatus('🧠 Planning your project architecture...');
+
         const stackDescription = nodes.map(n => {
             const stepOpt = PIPELINE_STEPS.find(s => s.id === n.data.stepId)?.options.find(o => o.id === n.data.selectedOption);
             return `${n.data.title}: ${stepOpt?.name || 'None'}`;
         }).join(', ');
 
-        // Find the user's core idea from chat history
         const userIdea = chatHistory.find(msg => msg.role === 'user')?.content || 'a full-stack web application';
 
         try {
-            const res = await fetch('/api/ai/chat', {
+            // ═══════════════════════════════════════════
+            // STEP 1: Get the file plan from AI
+            // ═══════════════════════════════════════════
+            const planRes = await fetch('/api/ai/generate-plan', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: `You are an expert Senior Software Engineer. The user wants to build: "${userIdea}".
-                    
-They have chosen the following tech stack: ${stackDescription}
-
-Your task is to Architect and write REAL, production-ready code for this specific idea using the chosen stack.
-
-IMPORTANT INSTRUCTIONS:
-1. You MUST return ONLY a SINGLE VALID JSON object.
-2. DO NOT include any markdown formatting like \`\`\`json or \`\`\`files.
-3. DO NOT include ANY conversational text before or after the JSON. If you include conversational text, the system will break.
-4. The JSON must exactly match this structure:
-{
-  "name": "wirestack-generated-project",
-  "children": [
-    {"name": "package.json", "content": "{\\"dependencies\\":{}}"},
-    {"name": "readme.md", "content": "# Project Setup Guidelines"},
-    {"name": "server.js", "content": "console.log('hello');"}
-  ]
-}
-5. You MUST include an 'index.html' file at the root level that contains a realistic, styled visual preview of the app frontend (using Tailwind CDN).
-Generate REAL, working code with at least 5 files.`
-                }),
+                body: JSON.stringify({ idea: userIdea, stack: stackDescription }),
                 credentials: 'include'
             });
-            const data = await res.json();
 
-            let jsonString = data.reply;
-
-            // Clean up if Groq still wrapped it in markdown
-            const match = jsonString.match(/```(?: json | files) ?\s *\n ? ([\s\S] *?) \n ? ```/i);
-            if (match) {
-                jsonString = match[1];
+            if (!planRes.ok) {
+                const err = await planRes.json();
+                throw new Error(err.details || err.error || 'Plan generation failed');
             }
 
-            // Clean up any conversational prefix/suffix to find the outermost braces
-            const firstBrace = jsonString.indexOf('{');
-            const lastBrace = jsonString.lastIndexOf('}');
+            const { plan } = await planRes.json();
 
-            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
-                jsonString = jsonString.slice(firstBrace, lastBrace + 1);
-                try {
-                    const parsed = JSON.parse(jsonString);
-                    setGeneratedFiles(parsed);
-                } catch (e) {
-                    console.error('Failed to parse clean JSON:', e, jsonString);
-                    alert('AI returned malformed code JSON. Check console.');
+            if (!Array.isArray(plan) || plan.length === 0) {
+                throw new Error('AI returned an empty file plan');
+            }
+
+            setGenerationStatus(`📋 Plan ready! Generating ${plan.length} files...`);
+
+            // Initialize the file tree structure
+            const projectTree = {
+                name: 'wirestack-generated-project',
+                children: []
+            };
+            setGeneratedFiles({ ...projectTree });
+
+            // ═══════════════════════════════════════════
+            // STEP 2: Generate each file one-by-one
+            // ═══════════════════════════════════════════
+            const generatedSoFar = [];
+
+            for (let i = 0; i < plan.length; i++) {
+                const file = plan[i];
+                setGenerationStatus(`⚡ Generating ${file.name} (${i + 1}/${plan.length})...`);
+
+                const fileRes = await fetch('/api/ai/generate-file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        idea: userIdea,
+                        stack: stackDescription,
+                        fileName: file.name,
+                        filePurpose: file.purpose,
+                        existingFiles: generatedSoFar
+                    }),
+                    credentials: 'include'
+                });
+
+                if (!fileRes.ok) {
+                    const err = await fileRes.json();
+                    console.error(`Failed to generate ${file.name}:`, err);
+                    // Add a placeholder so the pipeline doesn't break
+                    generatedSoFar.push({ name: file.name, content: `// Error generating this file: ${err.details || err.error}` });
+                } else {
+                    const fileData = await fileRes.json();
+                    generatedSoFar.push(fileData);
                 }
-            } else {
-                console.error('No JSON object found in AI reply:', data.reply);
-                alert('AI did not return a valid file structure. Check console.');
+
+                // Live update the editor panel!
+                setGeneratedFiles({
+                    name: 'wirestack-generated-project',
+                    children: [...generatedSoFar]
+                });
             }
+
+            setGenerationStatus(`✅ Done! ${generatedSoFar.length} files generated successfully.`);
+
+            // Notify chat
+            setChatHistory(prev => [...prev, {
+                role: 'assistant',
+                content: `🚀 Your project has been generated with ${generatedSoFar.length} files! Check the Editor panel to browse the code and preview your app.`
+            }]);
+
         } catch (err) {
             console.error('Code gen error:', err);
+            setGenerationStatus(`❌ Error: ${err.message}`);
             alert('Failed to generate code: ' + err.message);
         } finally {
             setIsGenerating(false);
+            setTimeout(() => setGenerationStatus(null), 5000);
         }
     };
 
@@ -435,10 +462,14 @@ Generate REAL, working code with at least 5 files.`
                         {/* Loading Overlay for Generation */}
                         {isGenerating && (
                             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                                <div className="bg-white border-4 border-black p-8 flex flex-col items-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                                <div className="bg-white border-4 border-black p-8 flex flex-col items-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-md">
                                     <Loader2 className="w-16 h-16 animate-spin text-[#FFD700] mb-4" />
                                     <h2 className="font-black text-2xl uppercase tracking-widest text-[#FF3366]">Agent Coding...</h2>
-                                    <p className="font-bold text-sm text-gray-500 mt-2">Forging your final project files</p>
+                                    {generationStatus && (
+                                        <p className="font-bold text-sm text-gray-700 mt-3 text-center bg-gray-100 border-2 border-black px-4 py-2">
+                                            {generationStatus}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -447,7 +478,7 @@ Generate REAL, working code with at least 5 files.`
 
                 {/* Right Panel: Code Editor */}
                 <div className="w-[350px] shrink-0">
-                    <EditorPanel files={generatedFiles} />
+                    <EditorPanel files={generatedFiles} generationStatus={generationStatus} />
                 </div>
             </div>
         );

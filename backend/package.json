@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "archiver": "^7.0.1",
     "body-parser": "^2.2.2",
     "connect-mongo": "^6.0.0",

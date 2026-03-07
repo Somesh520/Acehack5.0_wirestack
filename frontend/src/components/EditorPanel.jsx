@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FolderOpen, File, ChevronRight, ChevronDown, Code2, FileJson, FileText, Sparkles } from 'lucide-react';
 
 // Auto-detect type and add icons from AI-generated structure
@@ -68,13 +68,18 @@ const FileTreeItem = ({ item, depth = 0, onSelect, selectedFile }) => {
 };
 
 
-const EditorPanel = ({ files }) => {
+const EditorPanel = ({ files, generationStatus }) => {
     const normalized = files ? normalizeTree(files) : null;
     const [selectedFile, setSelectedFile] = useState(null);
 
-    // Reset selection when files change
+    // Auto-select the latest file when a new one arrives
     useEffect(() => {
-        setSelectedFile(null);
+        if (normalized?.children?.length > 0) {
+            const lastChild = normalized.children[normalized.children.length - 1];
+            if (lastChild && lastChild.type !== 'folder') {
+                setSelectedFile(lastChild);
+            }
+        }
     }, [files]);
 
     const formatContent = (file) => {
@@ -87,7 +92,7 @@ const EditorPanel = ({ files }) => {
                 // Determine if it tells us it's parsed or a string
                 const parsed = typeof content === 'string' ? JSON.parse(content) : content;
                 content = JSON.stringify(parsed, null, 2);
-            } catch (e) {
+            } catch {
                 // If it fails, just show the string
                 content = String(content);
             }
@@ -242,6 +247,11 @@ const EditorPanel = ({ files }) => {
                     <p className="text-xs font-bold text-gray-500 uppercase text-center">
                         Waiting for Code
                     </p>
+                    {generationStatus && (
+                        <p className="text-[11px] font-bold text-[#FFD700] text-center bg-black/50 px-4 py-2 border border-gray-600 animate-pulse">
+                            {generationStatus}
+                        </p>
+                    )}
                     <p className="text-[10px] text-gray-600 text-center leading-relaxed">
                         Select your stack in the wizard and click &quot;Generate Code&quot; — your project files will appear here!
                     </p>
