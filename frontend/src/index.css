@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply m-0 p-0 overflow-x-hidden antialiased text-black bg-[#f4f4f0];
+    background-image: radial-gradient(#cbd5e1 2px, transparent 2px);
+    background-size: 30px 30px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+}
