@@ -104,13 +104,14 @@ router.post('/chat', async (req, res) => {
 // ============================================================
 
 // Helper: call Gemini or Groq with a given system prompt + user message
-async function callLLM(systemPrompt, userMessage) {
+async function callLLM(systemPrompt, userMessage, maxTokens = 4000) {
     // ENGINE 1: Gemini
     if (process.env.GEMINI_API_KEY) {
         try {
             const model = genAI.getGenerativeModel({
                 model: "gemini-2.0-flash",
                 systemInstruction: systemPrompt,
+                generationConfig: { maxOutputTokens: maxTokens },
             });
             const result = await model.generateContent(userMessage);
             return result.response.text();
@@ -128,7 +129,7 @@ async function callLLM(systemPrompt, userMessage) {
             ],
             model: 'llama-3.3-70b-versatile',
             temperature: 0.7,
-            max_tokens: 4000,
+            max_tokens: maxTokens,
         });
         return chatCompletion.choices[0]?.message?.content || '';
     }
@@ -205,13 +206,44 @@ RULES:
 1. Return ONLY the file content. No markdown backticks, no explanations, no conversation.
 2. Write REAL, working, professional code that would impress hackathon judges.
 3. The code should be for: "${idea}" using stack: ${stack}.
-${isHtml ? `4. This is the frontend preview file. Create a STUNNING, fully functional single-page HTML using Tailwind CDN (https://cdn.tailwindcss.com). Include:
-   - Beautiful gradient backgrounds and modern typography
-   - Responsive layout with navigation, hero section, feature cards
-   - Interactive elements with JavaScript (modals, tabs, cart functionality for e-commerce, etc.)
-   - Dummy data that makes the preview look REAL and ALIVE
-   - Dark/light theme with premium feel
-   - At least 150 lines of well-structured code` : ''}
+${isHtml ? `4. This is the MAIN DEMO FILE. You must create a FULLY FUNCTIONAL, INTERACTIVE single-page application using:
+   - Tailwind CDN (https://cdn.tailwindcss.com) for styling
+   - Vanilla JavaScript for ALL interactivity
+   
+   THIS MUST BE A WORKING APP, NOT JUST A LANDING PAGE. Include ALL of these:
+   
+   A) SIMULATED BACKEND (JavaScript mock API):
+      - Create a MockAPI object that simulates REST endpoints using localStorage
+      - Pre-populate localStorage with 8-12 realistic dummy data items on first load
+      - Support CRUD operations (Create, Read, Update, Delete)
+      - Example: MockAPI.getProducts(), MockAPI.addToCart(), MockAPI.login()
+   
+   B) WORKING FEATURES (must actually work when clicked):
+      - Authentication: Login/Signup modal with form validation, stores user in localStorage
+      - Data Display: Dynamically render items from the mock database
+      - Search & Filter: Real-time search bar that filters displayed items
+      - CRUD Actions: Add/edit/delete items with immediate UI updates
+      - Cart/Selection: If e-commerce, full add-to-cart with quantity, total price calculation
+      - Notifications: Toast notifications on actions (added to cart, logged in, etc.)
+   
+   C) PREMIUM UI/UX:
+      - Dark gradient background (slate-900 to indigo-950)
+      - Glass-morphism cards with backdrop-blur
+      - Smooth CSS transitions and hover animations
+      - Responsive grid layout (mobile-friendly)
+      - Professional navigation bar with logo, search, and user menu
+      - Footer with links
+      - Loading skeleton animations
+      - At least 300 lines of well-structured code
+   
+   D) INTERACTIVITY:
+      - Modal dialogs that open/close
+      - Tab switching between views
+      - Dynamic counters (cart badge, notification count)
+      - Form submissions that actually save data
+      - State management using a simple JavaScript store pattern
+   
+   The goal is that a hackathon judge can click through this preview and see a REAL, WORKING application.` : ''}
 ${isJson ? '4. Return valid JSON only.' : ''}
 ${!isHtml && !isJson ? '4. Write clean, well-commented code with proper error handling.' : ''}`;
 
@@ -222,7 +254,8 @@ ${contextBlock}
 Return ONLY the raw file content, nothing else.`;
 
     try {
-        let content = await callLLM(systemPrompt, userMessage);
+        const tokens = isHtml ? 8000 : 4000;
+        let content = await callLLM(systemPrompt, userMessage, tokens);
 
         // Strip any markdown code fences the LLM might have added
         content = content.replace(/^```[\w]*\n?/gm, '').replace(/```\s*$/gm, '').trim();
