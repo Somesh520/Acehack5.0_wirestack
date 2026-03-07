@@ -22,6 +22,8 @@ const Workspace = () => {
     const [edges, setEdges] = useState(initialEdges);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [user, setUser] = useState(null);
+    const [workspaces, setWorkspaces] = useState([]);
+    const [activeWorkspace, setActiveWorkspace] = useState(null);
 
     useEffect(() => {
         fetch('/api/auth/me', { credentials: 'include' })
@@ -33,6 +35,61 @@ const Workspace = () => {
             })
             .catch(err => console.error('Error fetching user:', err));
     }, []);
+
+    // Fetch workspaces
+    useEffect(() => {
+        if (user) {
+            fetch('/api/workspace', { credentials: 'include' })
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data)) setWorkspaces(data);
+                })
+                .catch(err => console.error('Error fetching workspaces:', err));
+        }
+    }, [user]);
+
+    const handleCreateWorkspace = async () => {
+        try {
+            const name = `Project-${workspaces.length + 1}`;
+            const res = await fetch('/api/workspace', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name }),
+                credentials: 'include'
+            });
+            const ws = await res.json();
+            setWorkspaces(prev => [ws, ...prev]);
+            setActiveWorkspace(ws);
+            setNodes([]);
+            setEdges([]);
+        } catch (err) {
+            console.error('Error creating workspace:', err);
+        }
+    };
+
+    const handleSelectWorkspace = (ws) => {
+        setActiveWorkspace(ws);
+        setNodes(ws.nodes || []);
+        setEdges(ws.edges || []);
+    };
+
+    const handleSuggestComponents = (components) => {
+        // Map AI-suggested components to nodes on the canvas
+        const nodePositions = [
+            { x: 250, y: 50 },
+            { x: 100, y: 200 },
+            { x: 400, y: 200 },
+            { x: 100, y: 350 },
+            { x: 400, y: 350 },
+        ];
+        const newNodes = components.map((comp, i) => ({
+            id: `${comp.id}-${Date.now()}-${i}`,
+            type: comp.id,
+            position: nodePositions[i] || { x: 250, y: 50 + i * 150 },
+            data: { label: `${comp.id} node` },
+        }));
+        setNodes(newNodes);
+    };
 
     const onNodesChange = useCallback(
         (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -159,7 +216,14 @@ const Workspace = () => {
                 className={`${isSidebarOpen ? 'w-80' : 'w-0'
                     } transition-all duration-300 border-r-4 border-black bg-[#FFD700] relative overflow-hidden flex flex-col`}
             >
-                <Sidebar user={user} />
+                <Sidebar
+                    user={user}
+                    workspaces={workspaces}
+                    activeWorkspace={activeWorkspace}
+                    onCreateWorkspace={handleCreateWorkspace}
+                    onSelectWorkspace={handleSelectWorkspace}
+                    onSuggestComponents={handleSuggestComponents}
+                />
             </div>
 
             {/* Toggle Sidebar Button */}
@@ -177,7 +241,7 @@ const Workspace = () => {
                 <header className="h-16 border-b-4 border-black bg-white flex items-center justify-between px-6 z-10 shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="bg-black text-white p-1 font-black text-xl px-3 border-2 border-black">WS</div>
-                        <h1 className="font-black text-xl uppercase tracking-tighter">Workspace / <span className="text-[#FF3366]">MyProject-1</span></h1>
+                        <h1 className="font-black text-xl uppercase tracking-tighter">Workspace / <span className="text-[#FF3366]">{activeWorkspace?.name || 'MyProject-1'}</span></h1>
                         {user && (
                             <span className="ml-4 font-bold text-sm bg-black text-white px-2 py-1">
                                 HELLO, {user.first_name?.toUpperCase()}!

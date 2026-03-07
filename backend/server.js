@@ -8,6 +8,8 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const configurePassport = require('./config/passport');
 const authRoutes = require('./routes/authRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+const workspaceRoutes = require('./routes/workspaceRoutes');
 const MongoStore = require('connect-mongo').default;
 
 const app = express();
@@ -72,6 +74,8 @@ configurePassport(passport);
 
 // --- Routes ---
 app.use('/api/auth', authRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/workspace', workspaceRoutes);
 
 app.get('/', (req, res) => {
     res.send('WireStack Backend Engine is running v4.0.0');
