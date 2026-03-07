@@ -35,7 +35,7 @@ const LandingPage = () => {
                 </div>
 
                 {/* Big Blue CTA - Replacing Goal Input & Old CTA */}
-                <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/google`} className="w-full xl:w-[800px] bg-[#418df4] hover:bg-[#347be0] border-[4px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none transition-all flex flex-col sm:flex-row items-center justify-center py-6 gap-3 lg:gap-5 group px-8 z-20 mx-auto transform -rotate-1 no-underline">
+                <a href="/api/auth/google" className="w-full xl:w-[800px] bg-[#418df4] hover:bg-[#347be0] border-[4px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none transition-all flex flex-col sm:flex-row items-center justify-center py-6 gap-3 lg:gap-5 group px-8 z-20 mx-auto transform -rotate-1 no-underline">
                     <span className="font-black text-2xl md:text-4xl text-white tracking-widest flex items-center gap-4 drop-shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] whitespace-nowrap uppercase">
                         OPEN BUILDER IDE <ArrowRight className="w-8 h-8 md:w-10 md:h-10 stroke-[4]" />
                     </span>

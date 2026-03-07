@@ -24,8 +24,7 @@ const Workspace = () => {
     const [user, setUser] = useState(null);
 
     useEffect(() => {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        fetch(`${apiUrl}/api/auth/me`, { credentials: 'include' })
+        fetch('/api/auth/me', { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
                 if (data.authenticated) {
@@ -79,8 +78,7 @@ const Workspace = () => {
 
     const handleUserTypeSelection = async (type) => {
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-            const response = await fetch(`${apiUrl}/api/auth/update-type`, {
+            const response = await fetch('/api/auth/update-type', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userType: type }),
