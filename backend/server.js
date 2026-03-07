@@ -13,14 +13,16 @@ const MongoStore = require('connect-mongo').default;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust proxy for session cookies to work behind Vite proxy
-app.set('trust proxy', 1);
+// Trust proxy for session cookies to work behind Render/Vercel load balancers
+app.set('trust proxy', true);
 
 // Connect to MongoDB
 connectDB();
 
 // Middleware
 const frontendOrigin = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+const isHttpsMode = frontendOrigin.includes('https');
+
 app.use(cors({
     origin: frontendOrigin,
     credentials: true
@@ -39,8 +41,8 @@ app.use(session({
     }),
     proxy: true, // Required for proxy support
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: isHttpsMode, // Force secure cookies if we expect HTTPS on the origin
+        sameSite: isHttpsMode ? 'none' : 'lax', // Allow cross-domain over HTTPS
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
