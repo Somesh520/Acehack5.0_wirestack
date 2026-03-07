@@ -211,9 +211,12 @@ RULES:
 1. Return ONLY the file content. No markdown backticks, no explanations, no conversation.
 2. Write REAL, working, professional code that would impress hackathon judges.
 3. The code should be for: "${idea}" using stack: ${stack}.
-${isHtml ? `4. This is the MAIN DEMO FILE. You must create a FULLY FUNCTIONAL, INTERACTIVE single-page application using:
-   - Tailwind CDN for styling. You MUST include exactly this line inside the <head> tag: <script src="https://cdn.tailwindcss.com"></script>
-   - Vanilla JavaScript for ALL interactivity
+${isHtml ? `4. This is the MAIN DEMO FILE. You must create a FULLY FUNCTIONAL, INTERACTIVE single-page application.
+   
+   CRITICAL STYLING RULES (DO NOT IGNORE):
+   - You MUST include EXACTLY this line inside the <head> tag: <script src="https://cdn.tailwindcss.com"></script>
+   - You MUST ALSO include a fallback <style> block in the <head> with basic modern resets, a default sans-serif font, and basic layout structure (flexbox/grid) just in case the CDN fails or loads slowly.
+   - The UI MUST look professional, premium, and fully responsive (mobile, tablet, desktop).
    
    THIS MUST BE A WORKING APP, NOT JUST A LANDING PAGE. Include ALL of these:
    
@@ -225,20 +228,18 @@ ${isHtml ? `4. This is the MAIN DEMO FILE. You must create a FULLY FUNCTIONAL, I
    
    B) WORKING FEATURES (must actually work when clicked):
       - Authentication: Login/Signup modal with form validation, stores user in localStorage
-      - Data Display: Dynamically render items from the mock database
+      - Data Display: Dynamically render items from the mock database in a clean UI Grid
       - Search & Filter: Real-time search bar that filters displayed items
       - CRUD Actions: Add/edit/delete items with immediate UI updates
       - Cart/Selection: If e-commerce, full add-to-cart with quantity, total price calculation
       - Notifications: Toast notifications on actions (added to cart, logged in, etc.)
    
-   C) PREMIUM UI/UX:
-      - Dark gradient background (slate-900 to indigo-950)
-      - Glass-morphism cards with backdrop-blur
-      - Smooth CSS transitions and hover animations
-      - Responsive grid layout (mobile-friendly)
-      - Professional navigation bar with logo, search, and user menu
-      - Footer with links
-      - Loading skeleton animations
+   C) PREMIUM UI/UX USING TAILWIND UTILITY CLASSES:
+      - Use rich utility classes (e.g., bg-slate-900, text-white, shadow-xl, rounded-2xl, p-6)
+      - Glass-morphism cards with backdrop-blur (backdrop-blur-md bg-white/10)
+      - Smooth CSS transitions and hover animations (transition-all hover:-translate-y-1)
+      - Responsive grid layout (grid-cols-1 md:grid-cols-2 lg:grid-cols-3 or 4)
+      - Professional navigation bar (sticky top-0, flex justify-between items-center)
       - At least 300 lines of well-structured code
    
    D) INTERACTIVITY:
