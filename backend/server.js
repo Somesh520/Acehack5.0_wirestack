@@ -41,8 +41,8 @@ app.use(session({
     }),
     proxy: true, // Trust the reverse proxy when setting secure cookies (via app.set)
     cookie: {
-        secure: true, // MUST be true for sameSite 'none', force it regardless of NODE_ENV
-        sameSite: 'none', // Allow cross-domain over HTTPS
+        secure: isHttpsMode, // true for HTTPS (production), false for HTTP (localhost)
+        sameSite: isHttpsMode ? 'none' : 'lax', // Cross-domain for production, lax for local
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
