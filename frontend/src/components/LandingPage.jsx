@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, User, ArrowRight, Play, Server, Database, Shield, Zap, Workflow, CheckSquare, Star, Plus, Minus } from 'lucide-react';
+import { ArrowRight, Play, Server, Database, Shield, Zap, Workflow, CheckSquare, Star, Plus, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const LandingPage = () => {
@@ -7,19 +7,13 @@ const LandingPage = () => {
         <div className="min-h-screen text-black overflow-hidden relative font-sans selection:bg-[#ffd800] selection:text-black flex flex-col items-center">
 
             {/* Navigation */}
-            <nav className="w-full px-6 py-6 pb-0 flex justify-between items-center z-10 relative max-w-7xl mx-auto">
-                <button className="w-12 h-12 border-[4px] border-black bg-white flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all">
-                    <Menu className="w-6 h-6 stroke-[4]" />
-                </button>
+            <nav className="w-full px-6 py-6 pb-0 flex justify-center items-center z-10 relative max-w-7xl mx-auto">
                 <div className="hidden md:flex gap-8 font-black uppercase tracking-widest border-[4px] border-black bg-white px-8 py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                     <a href="#features" className="hover:underline decoration-4 underline-offset-4">Features</a>
                     <a href="#use-cases" className="hover:underline decoration-4 underline-offset-4">Use Cases</a>
                     <a href="#integrations" className="hover:underline decoration-4 underline-offset-4">Integrations</a>
                     <a href="#faq" className="hover:underline decoration-4 underline-offset-4">FAQs</a>
                 </div>
-                <button className="w-12 h-12 border-[4px] border-black bg-white flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all">
-                    <User className="w-6 h-6 stroke-[4]" />
-                </button>
             </nav>
 
             {/* Hero Content (Exact Layout Preserved) */}
