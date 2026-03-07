@@ -205,7 +205,7 @@ const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, on
                                 <div className="space-y-2">
                                     {workspaces.map((ws) => (
                                         <button
-                                            key={ws._id}
+                                            key={ws._id || ws.name}
                                             onClick={() => onSelectWorkspace(ws)}
                                             className={`w-full p-3 border-3 border-black text-left transition-all ${activeWorkspace?._id === ws._id
                                                 ? 'bg-[#FFD700] shadow-none translate-x-1 translate-y-1'

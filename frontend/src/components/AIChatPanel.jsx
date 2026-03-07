@@ -1,13 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles, Zap } from 'lucide-react';
 
-const AIChatPanel = ({ onSuggestComponents }) => {
-    const [messages, setMessages] = useState([
-        {
-            role: 'assistant',
-            content: "Hey! 👋 I'm **WireStack AI**! Tell me what app you want to build and I'll help you pick the perfect tech stack! 🚀\n\nFor example: *\"I want to build an e-commerce website\"*"
-        }
-    ]);
+const AIChatPanel = ({ onSuggestComponents, messages, setMessages }) => {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const chatEndRef = useRef(null);

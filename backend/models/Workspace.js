@@ -33,9 +33,8 @@ const workspaceSchema = new mongoose.Schema({
     }
 });
 
-workspaceSchema.pre('save', function (next) {
+workspaceSchema.pre('save', function () {
     this.updated_at = Date.now();
-    next();
 });
 
 module.exports = mongoose.model('Workspace', workspaceSchema);

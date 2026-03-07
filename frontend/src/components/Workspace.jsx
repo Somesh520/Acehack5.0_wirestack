@@ -11,7 +11,13 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import Sidebar from './Sidebar';
-import { Layout, Play, Save, ChevronLeft, ChevronRight, Settings, User as UserIcon, Code2, Box } from 'lucide-react';
+import AIChatPanel from './AIChatPanel';
+import EditorPanel from './EditorPanel';
+import GamifiedNode from './GamifiedNode';
+import NodeOptionsPanel from './NodeOptionsPanel';
+import { workflowNodeTypes } from './WorkflowNode';
+import { PIPELINE_NODES, PIPELINE_EDGES, PIPELINE_STEPS } from './pipelineConfig';
+import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play } from 'lucide-react';
 
 const initialNodes = [];
 const initialEdges = [];
@@ -24,6 +30,17 @@ const Workspace = () => {
     const [user, setUser] = useState(null);
     const [workspaces, setWorkspaces] = useState([]);
     const [activeWorkspace, setActiveWorkspace] = useState(null);
+    const [selectedNode, setSelectedNode] = useState(null);
+    const [generatedFiles, setGeneratedFiles] = useState(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    // Lifted chat state
+    const [chatHistory, setChatHistory] = useState([
+        {
+            role: 'assistant',
+            content: "Hey! 👋 I'm **WireStack AI**! Tell me what app you want to build and I'll help you pick the perfect tech stack! 🚀\n\nFor example: *\"I want to build an e-commerce website\"*"
+        }
+    ]);
 
     useEffect(() => {
         fetch('/api/auth/me', { credentials: 'include' })
@@ -73,23 +90,119 @@ const Workspace = () => {
         setEdges(ws.edges || []);
     };
 
-    const handleSuggestComponents = (components) => {
-        // Map AI-suggested components to nodes on the canvas
-        const nodePositions = [
-            { x: 250, y: 50 },
-            { x: 100, y: 200 },
-            { x: 400, y: 200 },
-            { x: 100, y: 350 },
-            { x: 400, y: 350 },
-        ];
-        const newNodes = components.map((comp, i) => ({
-            id: `${comp.id}-${Date.now()}-${i}`,
-            type: comp.id,
-            position: nodePositions[i] || { x: 250, y: 50 + i * 150 },
-            data: { label: `${comp.id} node` },
-        }));
-        setNodes(newNodes);
+    const handleSuggestComponents = () => {
+        // Kick off gamified pipeline
+        setNodes(PIPELINE_NODES);
+        setEdges(PIPELINE_EDGES);
     };
+
+    const handleSelectOption = (stepId, selectedOptionId) => {
+        setNodes(nds => {
+            const newNodes = [...nds];
+            const currentIndex = newNodes.findIndex(n => n.data.stepId === stepId);
+
+            if (currentIndex !== -1) {
+                // Mark current as completed
+                newNodes[currentIndex] = {
+                    ...newNodes[currentIndex],
+                    data: {
+                        ...newNodes[currentIndex].data,
+                        status: 'completed',
+                        selectedOption: selectedOptionId
+                    }
+                };
+
+                // Unlock next node
+                if (currentIndex + 1 < newNodes.length) {
+                    newNodes[currentIndex + 1] = {
+                        ...newNodes[currentIndex + 1],
+                        data: {
+                            ...newNodes[currentIndex + 1].data,
+                            status: 'active'
+                        }
+                    };
+                }
+            }
+            return newNodes;
+        });
+        setSelectedNode(null);
+    };
+
+    const handleGenerateProject = async () => {
+        setIsGenerating(true);
+        const stackDescription = nodes.map(n => {
+            const stepOpt = PIPELINE_STEPS.find(s => s.id === n.data.stepId)?.options.find(o => o.id === n.data.selectedOption);
+            return `${n.data.title}: ${stepOpt?.name || 'None'}`;
+        }).join(', ');
+
+        // Find the user's core idea from chat history
+        const userIdea = chatHistory.find(msg => msg.role === 'user')?.content || 'a full-stack web application';
+
+        try {
+            const res = await fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: `You are an expert Senior Software Engineer. The user wants to build: "${userIdea}".
+                    
+They have chosen the following tech stack: ${stackDescription}
+
+Your task is to Architect and write REAL, production-ready code for this specific idea using the chosen stack.
+
+IMPORTANT INSTRUCTIONS:
+1. You MUST return ONLY a SINGLE VALID JSON object.
+2. DO NOT include any markdown formatting like \`\`\`json or \`\`\`files.
+3. DO NOT include ANY conversational text before or after the JSON. If you include conversational text, the system will break.
+4. The JSON must exactly match this structure:
+{
+  "name": "wirestack-generated-project",
+  "children": [
+    {"name": "package.json", "content": "{\\"dependencies\\":{}}"},
+    {"name": "readme.md", "content": "# Project Setup Guidelines"},
+    {"name": "server.js", "content": "console.log('hello');"}
+  ]
+}
+5. You MUST include an 'index.html' file at the root level that contains a realistic, styled visual preview of the app frontend (using Tailwind CDN).
+Generate REAL, working code with at least 5 files.`
+                }),
+                credentials: 'include'
+            });
+            const data = await res.json();
+
+            let jsonString = data.reply;
+
+            // Clean up if Groq still wrapped it in markdown
+            const match = jsonString.match(/```(?: json | files) ?\s *\n ? ([\s\S] *?) \n ? ```/i);
+            if (match) {
+                jsonString = match[1];
+            }
+
+            // Clean up any conversational prefix/suffix to find the outermost braces
+            const firstBrace = jsonString.indexOf('{');
+            const lastBrace = jsonString.lastIndexOf('}');
+
+            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
+                jsonString = jsonString.slice(firstBrace, lastBrace + 1);
+                try {
+                    const parsed = JSON.parse(jsonString);
+                    setGeneratedFiles(parsed);
+                } catch (e) {
+                    console.error('Failed to parse clean JSON:', e, jsonString);
+                    alert('AI returned malformed code JSON. Check console.');
+                }
+            } else {
+                console.error('No JSON object found in AI reply:', data.reply);
+                alert('AI did not return a valid file structure. Check console.');
+            }
+        } catch (err) {
+            console.error('Code gen error:', err);
+            alert('Failed to generate code: ' + err.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const allCompleted = nodes.length > 0 && nodes.every(n => n.data.status === 'completed');
 
     const onNodesChange = useCallback(
         (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -122,7 +235,7 @@ const Workspace = () => {
 
             const position = { x: event.clientX - 300, y: event.clientY - 50 };
             const newNode = {
-                id: `${type}-${nodes.length + 1}`,
+                id: `${type} -${nodes.length + 1} `,
                 type,
                 position,
                 data: { label: `${type} node` },
@@ -209,12 +322,144 @@ const Workspace = () => {
         );
     }
 
+    const isNoCode = user?.user_type === 'non-developer';
+
+    // ===== NON-DEVELOPER: 3-Panel Layout =====
+    if (isNoCode) {
+        return (
+            <div className="flex h-screen w-full bg-white font-mono overflow-hidden">
+                {/* Left Panel: AI Chat */}
+                <div className="w-[320px] shrink-0 border-r-4 border-black bg-[#FFD700] flex flex-col overflow-hidden">
+                    {/* Mini navbar */}
+                    <div className="px-4 py-3 border-b-4 border-black bg-black text-white flex items-center gap-2 shrink-0">
+                        <div className="bg-[#FF3366] text-white font-black text-xs px-2 py-0.5">WS</div>
+                        <span className="text-xs font-bold truncate flex-1">{activeWorkspace?.name || 'New Project'}</span>
+                        <span className="text-[9px] bg-[#33FF66] text-black px-2 py-0.5 font-black">NO-CODE</span>
+                    </div>
+                    {/* User Info */}
+                    <div className="px-4 py-3 border-b-2 border-black bg-white shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 border-3 border-black bg-[#00F0FF] flex items-center justify-center font-black text-sm overflow-hidden shrink-0">
+                                {user.profile_picture ? (
+                                    <img src={user.profile_picture} alt="" className="w-full h-full object-cover" />
+                                ) : user.first_name?.[0] || 'U'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-xs font-black uppercase truncate leading-none">
+                                    {user.first_name} {user.last_name}
+                                </h3>
+                                <p className="text-[9px] font-bold text-gray-400 truncate mt-0.5">{user.email}</p>
+                            </div>
+                            <button
+                                onClick={() => window.location.href = '/api/auth/logout'}
+                                className="p-1.5 border-2 border-black hover:bg-black hover:text-white transition-colors"
+                            >
+                                <ChevronLeft size={12} />
+                            </button>
+                        </div>
+                        {/* Workspace Count */}
+                        <div className="mt-2 flex items-center gap-2 text-[10px] font-black uppercase text-gray-500">
+                            <span className="bg-[#FFD700] text-black px-2 py-0.5 border border-black">{workspaces.length}</span>
+                            <span>Workspace{workspaces.length !== 1 ? 's' : ''}</span>
+                            <span className="ml-auto text-[9px] text-gray-400">●  Active</span>
+                        </div>
+                    </div>
+                    {/* AI Chat */}
+                    <div className="flex-1 overflow-hidden">
+                        <AIChatPanel
+                            onSuggestComponents={handleSuggestComponents}
+                            messages={chatHistory}
+                            setMessages={setChatHistory}
+                        />
+                    </div>
+                </div>
+
+                {/* Center Panel: Canvas */}
+                <div className="flex-1 flex flex-col relative" ref={reactFlowWrapper}>
+                    {/* Top Navbar */}
+                    <header className="h-14 border-b-4 border-black bg-white flex items-center justify-between px-4 z-10 shrink-0">
+                        <h1 className="font-black text-lg uppercase tracking-tighter">Workflow / <span className="text-[#FF3366]">{activeWorkspace?.name || 'MyProject'}</span></h1>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={handleCreateWorkspace}
+                                className="flex items-center gap-1 px-3 py-1.5 border-3 border-black bg-[#33FF66] font-black text-xs hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all"
+                            >
+                                + NEW
+                            </button>
+                            {allCompleted && (
+                                <button
+                                    onClick={handleGenerateProject}
+                                    disabled={isGenerating}
+                                    className="flex items-center gap-2 px-6 py-1.5 border-3 border-black bg-[#FFD700] font-black text-xs uppercase shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-75 animate-bounce"
+                                >
+                                    {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                    Generate Final Code
+                                </button>
+                            )}
+                        </div>
+                    </header>
+
+                    {/* Canvas */}
+                    <div className="flex-1 relative">
+                        {nodes.length === 0 ? (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-50 z-10">
+                                <Sparkles size={64} className="mb-4" />
+                                <h2 className="text-2xl font-black uppercase">Start a Mission</h2>
+                                <p className="font-bold text-gray-500">Ask the AI Agent on the left to build an app!</p>
+                            </div>
+                        ) : null}
+
+                        <ReactFlow
+                            nodes={nodes}
+                            edges={edges}
+                            onNodesChange={onNodesChange}
+                            onEdgesChange={onEdgesChange}
+                            onConnect={onConnect}
+                            onNodeClick={(_, node) => setSelectedNode(node)}
+                            nodeTypes={{ gamifiedNode: GamifiedNode }}
+                            fitView
+                        >
+                            <Background color="#000" variant="dots" gap={20} size={1} />
+                            <Controls className="!bg-white !border-4 !border-black !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" />
+                        </ReactFlow>
+
+                        {/* Node Tool Modal */}
+                        {selectedNode && (
+                            <NodeOptionsPanel
+                                node={selectedNode}
+                                onClose={() => setSelectedNode(null)}
+                                onSelectOption={handleSelectOption}
+                            />
+                        )}
+
+                        {/* Loading Overlay for Generation */}
+                        {isGenerating && (
+                            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                                <div className="bg-white border-4 border-black p-8 flex flex-col items-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                                    <Loader2 className="w-16 h-16 animate-spin text-[#FFD700] mb-4" />
+                                    <h2 className="font-black text-2xl uppercase tracking-widest text-[#FF3366]">Agent Coding...</h2>
+                                    <p className="font-bold text-sm text-gray-500 mt-2">Forging your final project files</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Right Panel: Code Editor */}
+                <div className="w-[350px] shrink-0">
+                    <EditorPanel files={generatedFiles} />
+                </div>
+            </div>
+        );
+    }
+
+    // ===== DEVELOPER: Original Layout =====
     return (
         <div className="flex h-screen w-full bg-white font-mono overflow-hidden">
             {/* Sidebar */}
             <div
                 className={`${isSidebarOpen ? 'w-80' : 'w-0'
-                    } transition-all duration-300 border-r-4 border-black bg-[#FFD700] relative overflow-hidden flex flex-col`}
+                    } transition - all duration - 300 border - r - 4 border - black bg - [#FFD700] relative overflow - hidden flex flex - col`}
             >
                 <Sidebar
                     user={user}
@@ -276,6 +521,7 @@ const Workspace = () => {
                         onConnect={onConnect}
                         onDrop={onDrop}
                         onDragOver={onDragOver}
+                        nodeTypes={workflowNodeTypes}
                         fitView
                     >
                         <Background color="#000" variant="dots" gap={20} size={1} />
