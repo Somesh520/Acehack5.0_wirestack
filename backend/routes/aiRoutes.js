@@ -152,14 +152,16 @@ router.post('/generate-plan', async (req, res) => {
 
 RULES:
 1. Return ONLY a valid JSON array. No markdown, no text, no backticks.
-2. Include 5-8 files maximum.
-3. ALWAYS include "index.html" as the LAST file — this is a beautiful Tailwind CSS frontend preview.
-4. ALWAYS include "package.json" as the FIRST file.
-5. Include files relevant to the chosen stack (e.g., server.js for Express, db.js for MongoDB, auth.js for Auth).
-6. File names should be flat (no folders), just filenames.
+2. Include 6-10 files maximum.
+3. ALWAYS include "package.json" as the FIRST file.
+4. ALWAYS include "Dockerfile" and "docker-compose.yml" so the project can be run instantly via Docker.
+5. ALWAYS include "README.md" explaining how to start the app using \`docker-compose up\`.
+6. ALWAYS include "index.html" as the LAST file — this is a beautiful Tailwind CSS frontend preview.
+7. Include files relevant to the chosen stack (e.g., server.js for Express, db.js for MongoDB).
+8. File names should be flat (no folders), just filenames.
 
 Example output:
-[{"name":"package.json","purpose":"Project dependencies and scripts"},{"name":"server.js","purpose":"Express API server with routes"},{"name":"index.html","purpose":"Beautiful Tailwind frontend preview"}]`;
+[{"name":"package.json","purpose":"Project dependencies and scripts"},{"name":"server.js","purpose":"Express API server with routes"},{"name":"Dockerfile","purpose":"Dockerize the Node.js application"},{"name":"docker-compose.yml","purpose":"Docker Compose config to run the app"},{"name":"README.md","purpose":"Instructions to run the app via Docker"},{"name":"index.html","purpose":"Beautiful Tailwind frontend preview"}]`;
 
     try {
         const reply = await callLLM(systemPrompt, `Project idea: "${idea}"\nTech stack: ${stack}`);
@@ -193,6 +195,8 @@ router.post('/generate-file', async (req, res) => {
 
     const isHtml = fileName.endsWith('.html');
     const isJson = fileName.endsWith('.json');
+    const isDocker = fileName === 'Dockerfile' || fileName === 'docker-compose.yml';
+    const isServerConfig = fileName === 'server.js' || fileName === 'package.json';
 
     let contextBlock = '';
     if (existingFiles.length > 0) {
@@ -245,7 +249,13 @@ ${isHtml ? `4. This is the MAIN DEMO FILE. You must create a FULLY FUNCTIONAL, I
    
    The goal is that a hackathon judge can click through this preview and see a REAL, WORKING application.` : ''}
 ${isJson ? '4. Return valid JSON only.' : ''}
-${!isHtml && !isJson ? '4. Write clean, well-commented code with proper error handling.' : ''}`;
+${isDocker ? `4. Write clean, reliable Docker configurations.
+   - For Dockerfile: Use Node 18+ Alpine, set WORKDIR to /app, copy package.json, run npm install, copy source, expose the correct port (usually 3000 or 8080), and run the server.
+   - For docker-compose.yml: Expose the backend port (e.g., "3000:3000" or "8080:8080"). If MongoDB is used in the stack, add a 'mongo' service and pass MONGO_URI to the backend.` : ''}
+${isServerConfig ? `4. Write robust server configuration.
+   - For server.js: Ensure it serves index.html statically using express.static if it exists. Example: \`app.use(express.static(__dirname)); app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));\`
+   - For package.json: Ensure "scripts": {"start": "node server.js"} is present.` : ''}
+${!isHtml && !isJson && !isDocker && !isServerConfig ? '4. Write clean, well-commented code with proper error handling.' : ''}`;
 
     const userMessage = `Generate the file: "${fileName}"
 Purpose: ${filePurpose}
