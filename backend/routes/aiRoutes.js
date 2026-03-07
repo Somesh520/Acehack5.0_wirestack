@@ -1,6 +1,7 @@
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Groq = require('groq-sdk');
+const archiver = require('archiver');
 const router = express.Router();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -274,6 +275,47 @@ Return ONLY the raw file content, nothing else.`;
     } catch (err) {
         console.error(`❌ File generation error (${fileName}):`, err.message);
         res.status(500).json({ error: `Failed to generate ${fileName}`, details: err.message });
+    }
+});
+
+// STEP 3: Download the generated project as a ZIP file
+router.post('/download', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { files } = req.body;
+    if (!files || !Array.isArray(files)) {
+        return res.status(400).json({ error: 'files array is required' });
+    }
+
+    try {
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', 'attachment; filename="wirestack-project.zip"');
+
+        const archive = archiver('zip', {
+            zlib: { level: 9 } // maximum compression
+        });
+
+        archive.on('error', function (err) {
+            throw err;
+        });
+
+        archive.pipe(res);
+
+        // Add files to the ZIP
+        files.forEach(file => {
+            if (file.name && file.content) {
+                archive.append(file.content, { name: file.name });
+            }
+        });
+
+        await archive.finalize();
+    } catch (err) {
+        console.error('❌ Error generating zip:', err.message);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to generate zip file', details: err.message });
+        }
     }
 });
 

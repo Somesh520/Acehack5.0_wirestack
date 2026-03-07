@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FolderOpen, File, ChevronRight, ChevronDown, Code2, FileJson, FileText, Sparkles } from 'lucide-react';
+import { FolderOpen, File, ChevronRight, ChevronDown, Code2, FileJson, FileText, Sparkles, Download, Loader2 } from 'lucide-react';
 
 // Auto-detect type and add icons from AI-generated structure
 const normalizeTree = (node) => {
@@ -71,6 +71,39 @@ const FileTreeItem = ({ item, depth = 0, onSelect, selectedFile }) => {
 const EditorPanel = ({ files, generationStatus }) => {
     const normalized = files ? normalizeTree(files) : null;
     const [selectedFile, setSelectedFile] = useState(null);
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    const handleDownloadZip = async () => {
+        if (!normalized || !normalized.children) return;
+        setIsDownloading(true);
+        try {
+            const response = await fetch('/api/ai/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: normalized.children }),
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to download project');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'wirestack-project.zip';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading zip:', error);
+            alert('Failed to download project zip');
+        } finally {
+            setIsDownloading(false);
+        }
+    };
 
     // Auto-select the latest file when a new one arrives
     useEffect(() => {
@@ -163,18 +196,28 @@ const EditorPanel = ({ files, generationStatus }) => {
                 </div>
 
                 {normalized && (
-                    <div className="flex bg-black p-1 rounded-sm border border-gray-600">
+                    <div className="flex items-center gap-3">
+                        <div className="flex bg-black p-1 rounded-sm border border-gray-600">
+                            <button
+                                onClick={() => setViewMode('code')}
+                                className={`px-3 py-1 text-[9px] font-black uppercase transition-all ${viewMode === 'code' ? 'bg-[#FFD700] text-black shadow-[2px_2px_0px_0px_rgba(255,255,255,0.3)]' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                Code
+                            </button>
+                            <button
+                                onClick={() => setViewMode('preview')}
+                                className={`px-3 py-1 text-[9px] font-black uppercase transition-all ${viewMode === 'preview' ? 'bg-[#FF3366] text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.3)]' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                Preview
+                            </button>
+                        </div>
                         <button
-                            onClick={() => setViewMode('code')}
-                            className={`px-3 py-1 text-[9px] font-black uppercase transition-all ${viewMode === 'code' ? 'bg-[#FFD700] text-black shadow-[2px_2px_0px_0px_rgba(255,255,255,0.3)]' : 'text-gray-400 hover:text-white'}`}
+                            onClick={handleDownloadZip}
+                            disabled={isDownloading}
+                            title="Download project as ZIP"
+                            className="bg-[#33FF66] text-black p-1.5 border border-black hover:bg-[#FFD700] transition-colors disabled:opacity-50"
                         >
-                            Code
-                        </button>
-                        <button
-                            onClick={() => setViewMode('preview')}
-                            className={`px-3 py-1 text-[9px] font-black uppercase transition-all ${viewMode === 'preview' ? 'bg-[#FF3366] text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.3)]' : 'text-gray-400 hover:text-white'}`}
-                        >
-                            Preview
+                            {isDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                         </button>
                     </div>
                 )}
