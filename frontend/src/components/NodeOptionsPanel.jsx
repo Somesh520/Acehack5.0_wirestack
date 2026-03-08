@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle2, ChevronRight, Lock } from 'lucide-react';
+import { X, CheckCircle2, ChevronRight, Lock, Sparkles } from 'lucide-react';
 import { PIPELINE_STEPS } from './pipelineConfig';
 
 const NodeOptionsPanel = ({ node, onSelectOption, onClose }) => {
