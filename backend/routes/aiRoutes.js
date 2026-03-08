@@ -43,7 +43,9 @@ Personality:
 - Use mission/quest language: "Your first challenge is...", "Level up with..."
 - Be concise: max 3-4 sentences + system_design block.
 - Explain the "WHY" behind the Industry Standard.
-- Use emojis: 🎯🔓✅🗺️⚡🛡️💎`;
+- Use emojis: 🎯🔓✅🗺️⚡🛡️💎
+
+CRITICAL RULE: Before providing your final response, you MUST think step-by-step. Wrap your internal thought process inside <thought>...</thought> tags. Then provide your final response to the user.`;
 
 // POST /api/ai/chat
 router.post('/chat', async (req, res) => {
@@ -83,51 +85,70 @@ router.post('/chat', async (req, res) => {
         { role: 'user', content: message }
     ];
 
-    try {
-        // ENGINE 1: PRIMARY (Groq Llama 3.3 70B)
-        if (process.env.GROQ_API_KEY) {
-            const chatCompletion = await groq.chat.completions.create({
-                messages: formattedHistoryGroq,
-                model: 'llama-3.3-70b-versatile',
-                temperature: 0.7,
-                max_tokens: 8000,
-            });
+    const modelsToTry = [
+        { provider: 'groq', modelId: 'llama-3.3-70b-versatile', engineName: 'Groq (Llama 3.3 70B)' },
+        { provider: 'groq', modelId: 'mixtral-8x7b-32768', engineName: 'Groq (Mixtral 8x7B)' }, // Groq fallback
+        { provider: 'gemini', modelId: 'gemini-2.0-flash', engineName: 'Gemini (2.0 Flash)' }, // Gemini primary
+        { provider: 'gemini', modelId: 'gemini-1.5-flash', engineName: 'Gemini (1.5 Flash)' }, // Gemini fallback
+        { provider: 'gemini', modelId: 'gemini-1.5-pro', engineName: 'Gemini (1.5 Pro)' }      // Gemini ultimate fallback
+    ];
 
-            const reply = chatCompletion.choices[0]?.message?.content || 'Hmm, I got confused. Try again!';
-            return res.json({ reply, thoughtProcess: "I'm running on Groq (Ultra-Fast) engine.", engine: 'Groq' });
+    let lastError = null;
+
+    for (const attempt of modelsToTry) {
+        try {
+            if (attempt.provider === 'groq' && process.env.GROQ_API_KEY) {
+                const chatCompletion = await groq.chat.completions.create({
+                    messages: formattedHistoryGroq,
+                    model: attempt.modelId,
+                    temperature: 0.7,
+                    max_tokens: 8000,
+                });
+                let reply = chatCompletion.choices[0]?.message?.content;
+                if (reply) {
+                    const thoughtMatch = reply.match(/<thought>([\s\S]*?)<\/thought>/);
+                    const thoughtContent = thoughtMatch ? thoughtMatch[1].trim() : null;
+                    const cleanReply = reply.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim() || 'Hmm, I got confused. Try again!';
+
+                    // Create a gamified label indicating which super-fast model achieved the generation
+                    const finalThoughtProcess = thoughtContent
+                        ? `[POWERED BY ${attempt.engineName}]\n\n${thoughtContent}`
+                        : `I'm running on ${attempt.engineName} engine.`;
+
+                    return res.json({ reply: cleanReply, thoughtProcess: finalThoughtProcess, engine: attempt.provider });
+                }
+            } else if (attempt.provider === 'gemini' && process.env.GEMINI_API_KEY) {
+                const model = genAI.getGenerativeModel({
+                    model: attempt.modelId,
+                    systemInstruction: SYSTEM_PROMPT + "\n\nCRITICAL: Before providing your final response, you MUST think step-by-step. Wrap your internal thought process inside <thought>...</thought> tags. Then provide your final response to the user.",
+                });
+                const chat = model.startChat({
+                    history: formattedHistoryGemini,
+                    generationConfig: { maxOutputTokens: 8192, temperature: 0.7 }
+                });
+                const result = await chat.sendMessage([{ text: message }]);
+                let reply = result.response.text();
+
+                if (reply) {
+                    const thoughtMatch = reply.match(/<thought>([\s\S]*?)<\/thought>/);
+                    const thoughtContent = thoughtMatch ? thoughtMatch[1].trim() : null;
+                    const cleanReply = reply.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim() || 'Hmm, I got confused. Try again!';
+
+                    const finalThoughtProcess = thoughtContent
+                        ? `[POWERED BY ${attempt.engineName}]\n\n${thoughtContent}`
+                        : `I'm running on ${attempt.engineName} engine.`;
+
+                    return res.json({ reply: cleanReply, thoughtProcess: finalThoughtProcess, engine: 'Gemini' });
+                }
+            }
+        } catch (err) {
+            console.warn(`⚠️ ${attempt.engineName} failed:`, err.message);
+            lastError = err;
         }
-    } catch (err) {
-        console.warn('⚠️ Groq AI Error (Falling back to Gemini):', err.message);
     }
 
-    try {
-        // ENGINE 2: FALLBACK (Google Gemini 1.5 Pro)
-        if (process.env.GEMINI_API_KEY) {
-            const model = genAI.getGenerativeModel({
-                model: "gemini-2.0-flash",
-                systemInstruction: SYSTEM_PROMPT + "\n\nCRITICAL: Before providing your final response, you MUST think step-by-step. Wrap your internal thought process inside <thought>...</thought> tags. Then provide your final response to the user.",
-            });
-
-            const chat = model.startChat({
-                history: formattedHistoryGemini,
-                generationConfig: { maxOutputTokens: 8192, temperature: 0.7 }
-            });
-
-            const result = await chat.sendMessage([{ text: message }]);
-            let reply = result.response.text();
-
-            const thoughtMatch = reply.match(/<thought>([\s\S]*?)<\/thought>/);
-            const thoughtProcess = thoughtMatch ? thoughtMatch[1].trim() : null;
-            const cleanReply = reply.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim() || 'Hmm, I got confused. Try again!';
-
-            return res.json({ reply: cleanReply, thoughtProcess, engine: 'Gemini' });
-        } else {
-            return res.status(500).json({ error: 'No AI providers available. Check API keys.' });
-        }
-    } catch (err) {
-        console.error('❌ AI Error FULL STACK:', err);
-        res.status(500).json({ error: 'AI service completely unavailable', details: err.message });
-    }
+    console.error('❌ ALL AI MODELS FAILED:', lastError);
+    return res.status(500).json({ error: 'AI service completely unavailable after trying all fallbacks.', details: lastError?.message });
 });
 
 // ============================================================
@@ -139,62 +160,49 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper: call Gemini or Groq with retry logic and exponential backoff
 async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2, preferredModel = null) {
+    const modelsToTry = [
+        { provider: 'groq', modelId: 'llama-3.3-70b-versatile', engineName: 'Groq (Llama 3.3 70B)' },
+        { provider: 'groq', modelId: 'mixtral-8x7b-32768', engineName: 'Groq (Mixtral 8x7B)' },
+        { provider: 'gemini', modelId: 'gemini-2.0-flash', engineName: 'Gemini (2.0 Flash)' },
+        { provider: 'gemini', modelId: 'gemini-1.5-flash', engineName: 'Gemini (1.5 Flash)' },
+        { provider: 'groq', modelId: 'llama-3.1-8b-instant', engineName: 'Groq (Llama 3.1 8B)' }
+    ];
+
     let lastError = null;
 
     for (let attempt = 1; attempt <= retries; attempt++) {
-        // ENGINE 1: Groq Llama 3.3 70B (Primary now)
-        if (process.env.GROQ_API_KEY && (!preferredModel || preferredModel === 'groq')) {
-            try {
-                const chatCompletion = await groq.chat.completions.create({
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userMessage }
-                    ],
-                    model: 'llama-3.3-70b-versatile',
-                    temperature: 0.7,
-                    max_tokens: maxTokens,
-                });
-                return chatCompletion.choices[0]?.message?.content || '';
-            } catch (err) {
-                console.warn(`⚠️ Groq 70B failed (attempt ${attempt}/${retries}):`, err.message);
-                lastError = err;
-            }
-        }
+        for (const modelOpt of modelsToTry) {
+            // Respect preferredModel if provided (e.g., forcing groq or gemini)
+            if (preferredModel && preferredModel !== modelOpt.provider) continue;
 
-        // ENGINE 2: Gemini 1.5 Flash (Fallback now)
-        if (process.env.GEMINI_API_KEY && (!preferredModel || preferredModel === 'gemini')) {
             try {
-                const model = genAI.getGenerativeModel({
-                    model: "gemini-1.5-flash-latest",
-                    systemInstruction: systemPrompt,
-                    generationConfig: { maxOutputTokens: maxTokens },
-                });
-                const result = await model.generateContent(userMessage);
-                return result.response.text();
-            } catch (err) {
-                console.warn(`⚠️ Gemini 1.5 Flash failed (attempt ${attempt}/${retries}):`, err.message);
-                lastError = err;
-            }
-        }
+                if (modelOpt.provider === 'groq' && process.env.GROQ_API_KEY) {
+                    const chatCompletion = await groq.chat.completions.create({
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userMessage }
+                        ],
+                        model: modelOpt.modelId,
+                        temperature: 0.7,
+                        max_tokens: maxTokens,
+                    });
+                    const reply = chatCompletion.choices[0]?.message?.content;
+                    if (reply) return reply;
 
-        // ENGINE 3: Groq Llama 3.1 8B Instant (Last resort)
-        if (process.env.GROQ_API_KEY) {
-            try {
-                const chatCompletion = await groq.chat.completions.create({
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userMessage }
-                    ],
-                    model: 'llama-3.1-8b-instant',
-                    temperature: 0.7,
-                    max_tokens: maxTokens,
-                });
-                return chatCompletion.choices[0]?.message?.content || '';
-            } catch (err) {
-                console.warn(`⚠️ Groq 8B failed (attempt ${attempt}/${retries}):`, err.message);
-                if (err.message.includes('413') || err.message.includes('limit_exceeded')) {
-                    console.error('🚫 Token limit exceeded for Groq 8B.');
+                } else if (modelOpt.provider === 'gemini' && process.env.GEMINI_API_KEY) {
+                    const model = genAI.getGenerativeModel({
+                        model: modelOpt.modelId,
+                        systemInstruction: systemPrompt,
+                        generationConfig: { maxOutputTokens: maxTokens },
+                    });
+
+                    // Note: Using generateContent for generic tasks (no chat history here)
+                    const result = await model.generateContent(userMessage);
+                    const reply = result.response.text();
+                    if (reply) return reply;
                 }
+            } catch (err) {
+                console.warn(`⚠️ ${modelOpt.engineName} failed (attempt ${attempt}/${retries}):`, err.message);
                 lastError = err;
             }
         }
@@ -202,12 +210,12 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
         // Wait before retrying (exponential backoff: 2s, 4s)
         if (attempt < retries) {
             const delay = Math.pow(2, attempt) * 1000;
-            console.log(`⏳ Retrying in ${delay / 1000}s...`);
+            console.log(`⏳ Retrying all models in ${delay / 1000}s...`);
             await sleep(delay);
         }
     }
 
-    throw lastError || new Error('No AI providers available after retries');
+    throw lastError || new Error('No AI providers available after trying all fallbacks');
 }
 
 // STEP 1: Generate the file plan (tiny JSON)
