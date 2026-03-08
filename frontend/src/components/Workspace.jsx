@@ -13,10 +13,11 @@ import Sidebar from './Sidebar';
 import AIChatPanel from './AIChatPanel';
 import EditorPanel from './EditorPanel';
 import NodeOptionsPanel from './NodeOptionsPanel';
+import AnalysisModal from './AnalysisModal';
 import { workflowNodeTypes } from './WorkflowNode';
 import DeveloperNode from './DeveloperNode';
 import { PIPELINE_NODES, PIPELINE_EDGES, PIPELINE_STEPS } from './pipelineConfig';
-import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut, BarChart3 } from 'lucide-react';
 
 const initialNodes = [];
 const initialEdges = [];
@@ -34,6 +35,9 @@ const Workspace = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [showProjectMenu, setShowProjectMenu] = useState(false);
     const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
+    const [analysisData, setAnalysisData] = useState(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [showAnalysis, setShowAnalysis] = useState(false);
 
     // Lifted chat state
     const [chatHistory, setChatHistory] = useState([
@@ -139,6 +143,41 @@ const Workspace = () => {
             console.error('Error saving workspace:', err);
             setSaveStatus('error');
             setTimeout(() => setSaveStatus(null), 3000);
+        }
+    };
+
+    const handleAnalyzeStack = async () => {
+        if (nodes.length === 0) return;
+
+        // Extract unique tech names from canvas nodes
+        const stackNames = [...new Set(nodes.map(n => {
+            // Base type: 'react-1' → 'react'
+            const baseType = n.type?.split('-')[0] || n.data?.label?.toLowerCase() || 'unknown';
+            return baseType;
+        }))].filter(s => s !== 'default' && s !== 'unknown');
+
+        if (stackNames.length === 0) return;
+
+        setIsAnalyzing(true);
+        setShowAnalysis(true);
+        setAnalysisData(null);
+
+        try {
+            const res = await fetch('/api/ai/analyze-stack', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stack: stackNames }),
+                credentials: 'include'
+            });
+
+            if (!res.ok) throw new Error('Analysis failed');
+            const data = await res.json();
+            setAnalysisData(data);
+        } catch (err) {
+            console.error('Analysis error:', err);
+            setAnalysisData({ summary: 'Analysis failed. Please try again.', cost: null, security: null, scalability: null, architecture: null });
+        } finally {
+            setIsAnalyzing(false);
         }
     };
 
@@ -740,6 +779,14 @@ const Workspace = () => {
                         {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play size={16} />}
                         GENERATE BOILERPLATE
                     </button>
+                    <button
+                        onClick={handleAnalyzeStack}
+                        disabled={isAnalyzing || nodes.length === 0}
+                        className="flex items-center gap-2 px-4 py-1.5 border-3 border-black bg-[#FF3366] text-white font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+                    >
+                        {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 size={16} />}
+                        ANALYZE
+                    </button>
 
                     {/* User Avatar + Logout */}
                     {user && (
@@ -841,6 +888,15 @@ const Workspace = () => {
                     </div>
                 )}
             </div>
+
+            {/* Analysis Modal */}
+            {showAnalysis && (
+                <AnalysisModal
+                    analysis={analysisData}
+                    isLoading={isAnalyzing}
+                    onClose={() => { setShowAnalysis(false); setAnalysisData(null); }}
+                />
+            )}
         </div>
     );
 };

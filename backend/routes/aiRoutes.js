@@ -400,4 +400,73 @@ router.post('/download', async (req, res) => {
     }
 });
 
+// ============================================================
+// PROJECT ANALYSIS: Cost, Security, Scalability
+// ============================================================
+router.post('/analyze-stack', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { stack } = req.body;
+    if (!stack || !Array.isArray(stack) || stack.length === 0) {
+        return res.status(400).json({ error: 'stack array is required (list of tech names)' });
+    }
+
+    const stackList = stack.join(', ');
+    const systemPrompt = `You are a senior cloud architect and DevOps consultant. Analyze the given tech stack and provide a comprehensive project analysis.
+
+Return ONLY a valid JSON object with this exact structure (no markdown, no backticks, no extra text):
+{
+  "summary": "1-2 sentence overall assessment",
+  "cost": {
+    "monthly_estimate": "$XX - $XX/month",
+    "breakdown": [
+      { "service": "name", "provider": "AWS/GCP/Vercel/etc", "cost": "$X/mo", "note": "why" }
+    ],
+    "free_tier_possible": true/false,
+    "tip": "cost optimization tip"
+  },
+  "security": {
+    "score": "A/B/C/D (letter grade)",
+    "strengths": ["strength1", "strength2"],
+    "vulnerabilities": ["vuln1", "vuln2"],
+    "recommendations": ["rec1", "rec2", "rec3"]
+  },
+  "scalability": {
+    "score": "A/B/C/D (letter grade)",
+    "max_concurrent_users": "estimated range",
+    "bottlenecks": ["bottleneck1"],
+    "improvements": ["improvement1", "improvement2"]
+  },
+  "architecture": {
+    "pattern": "monolith/microservices/serverless/etc",
+    "strengths": ["str1"],
+    "missing_components": ["component user should add"],
+    "production_checklist": ["step1", "step2", "step3"]
+  }
+}
+
+Be realistic and specific with cost estimates. Use actual cloud provider pricing. Consider the Indian developer context (budget-friendly options).`;
+
+    try {
+        const raw = await callLLM(systemPrompt, `Analyze this tech stack: ${stackList}`, 4000);
+
+        // Extract JSON from response
+        let analysis;
+        try {
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            analysis = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+        } catch (parseErr) {
+            console.warn('⚠️ Analysis JSON parse failed, returning raw');
+            analysis = { summary: raw, cost: null, security: null, scalability: null, architecture: null };
+        }
+
+        res.json(analysis);
+    } catch (err) {
+        console.error('❌ Analysis error:', err.message);
+        res.status(500).json({ error: 'Analysis failed', details: err.message });
+    }
+});
+
 module.exports = router;
