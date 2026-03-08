@@ -866,9 +866,18 @@ const Workspace = () => {
                         )}
                     </div>
 
-                    <span className="text-xs font-black uppercase text-gray-400 ml-2">
-                        Role: <span className="text-black bg-[#FFD700] px-2 py-0.5 border-2 border-black ml-1">{user?.user_type}</span>
-                    </span>
+                    <div
+                        onClick={handleToggleUserType}
+                        className="group flex items-center gap-1 cursor-pointer select-none"
+                    >
+                        <span className="text-[10px] font-black uppercase text-gray-400 ml-2 group-hover:text-black transition-colors">
+                            Role:
+                        </span>
+                        <span className="text-[10px] font-black uppercase text-black bg-[#FFD700] px-2 py-0.5 border-2 border-black ml-1 group-hover:bg-[#00F0FF] group-active:translate-x-0.5 group-active:translate-y-0.5 group-active:shadow-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                            {user?.user_type}
+                        </span>
+                        <Settings size={12} className="text-gray-400 group-hover:text-black group-hover:rotate-90 transition-all ml-1" />
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-3">
