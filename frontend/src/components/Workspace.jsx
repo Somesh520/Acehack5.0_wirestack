@@ -16,6 +16,7 @@ import NodeOptionsPanel from './NodeOptionsPanel';
 import AnalysisModal from './AnalysisModal';
 import { workflowNodeTypes } from './WorkflowNode';
 import DeveloperNode from './DeveloperNode';
+import GamifiedNode from './GamifiedNode';
 import { PIPELINE_NODES, PIPELINE_EDGES, PIPELINE_STEPS } from './pipelineConfig';
 import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut, BarChart3, FolderUp } from 'lucide-react';
 
