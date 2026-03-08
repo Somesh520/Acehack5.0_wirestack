@@ -1,6 +1,36 @@
 import { useState, useEffect } from 'react';
 import { FolderOpen, File, ChevronRight, ChevronDown, Code2, FileJson, FileText, Sparkles, Download, Loader2 } from 'lucide-react';
 
+// Convert flat file paths like "frontend/src/App.jsx" into a nested tree structure
+const buildNestedTree = (flatFiles) => {
+    const root = { name: 'project', children: [] };
+
+    flatFiles.forEach(file => {
+        const parts = file.name.split('/');
+        let current = root;
+
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            const isLastPart = i === parts.length - 1;
+
+            if (isLastPart) {
+                // This is a file
+                current.children.push({ name: part, content: file.content });
+            } else {
+                // This is a folder, find or create it
+                let folder = current.children.find(c => c.name === part && c.children);
+                if (!folder) {
+                    folder = { name: part, children: [] };
+                    current.children.push(folder);
+                }
+                current = folder;
+            }
+        }
+    });
+
+    return root;
+};
+
 // Auto-detect type and add icons from AI-generated structure
 const normalizeTree = (node) => {
     if (!node) return null;
@@ -16,6 +46,9 @@ const normalizeTree = (node) => {
         html: <Code2 size={14} className="text-[#FF3366]" />,
         css: <Code2 size={14} className="text-[#33FF66]" />,
         py: <Code2 size={14} className="text-[#FFD700]" />,
+        yml: <FileText size={14} className="text-[#FF6B6B]" />,
+        yaml: <FileText size={14} className="text-[#FF6B6B]" />,
+        env: <FileText size={14} className="text-[#888]" />,
     };
 
     return {
@@ -69,26 +102,19 @@ const FileTreeItem = ({ item, depth = 0, onSelect, selectedFile }) => {
 
 
 const EditorPanel = ({ files, generationStatus }) => {
-    const normalized = files ? normalizeTree(files) : null;
+    // First build a nested tree from flat paths, then normalize with icons
+    const nestedTree = (files && files.children) ? buildNestedTree(files.children) : null;
+    const normalized = nestedTree ? normalizeTree({ ...nestedTree, name: files.name || 'project' }) : null;
     const [selectedFile, setSelectedFile] = useState(null);
     const [isDownloading, setIsDownloading] = useState(false);
 
     const handleDownloadZip = async () => {
-        if (!normalized || !normalized.children) return;
+        if (!files || !files.children || files.children.length === 0) return;
         setIsDownloading(true);
 
-        // Strip the React elements (icons) before stringifying for the backend
-        const cleanFilesForUpload = (nodes) => {
-            return nodes.map(node => {
-                const { icon, ...cleanNode } = node;
-                if (cleanNode.children) {
-                    cleanNode.children = cleanFilesForUpload(cleanNode.children);
-                }
-                return cleanNode;
-            });
-        };
-
-        const safeFiles = cleanFilesForUpload(normalized.children);
+        // Send the ORIGINAL flat files array (with paths like "frontend/src/App.jsx") to the backend
+        // The backend ZIP handler will create proper folders from these paths
+        const safeFiles = files.children.map(({ name, content }) => ({ name, content }));
 
         try {
             const response = await fetch('/api/ai/download', {

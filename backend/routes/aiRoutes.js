@@ -226,10 +226,12 @@ router.post('/generate-file', async (req, res) => {
 
     const isBoilerplate = idea.toLowerCase().includes('boilerplate');
 
-    const isHtml = fileName.endsWith('.html');
-    const isJson = fileName.endsWith('.json');
-    const isDocker = fileName === 'Dockerfile' || fileName === 'docker-compose.yml';
-    const isServerConfig = fileName === 'server.js' || fileName === 'package.json';
+    const baseName = fileName.split('/').pop(); // Get just the filename from nested paths like backend/src/index.js
+    const isHtml = baseName.endsWith('.html');
+    const isJson = baseName.endsWith('.json');
+    const isDocker = baseName === 'Dockerfile' || baseName === 'docker-compose.yml';
+    const isServerConfig = baseName === 'server.js' || baseName === 'index.js' || baseName === 'app.js';
+    const isConfig = baseName === '.env.example' || baseName === '.gitignore' || baseName.endsWith('.config.js') || baseName.endsWith('.config.ts');
 
     let contextBlock = '';
     if (existingFiles.length > 0) {
@@ -292,8 +294,9 @@ ${isDocker ? `4. Write clean, reliable, production-ready Docker configurations.
    - If this is the ROOT docker-compose.yml: orchestrate the 'frontend', 'backend', and any databases listed in the stack (e.g., postgres, redis, mongo). Use 'build: ./frontend' and 'build: ./backend' directives. Map ports correctly and pass necessary ENV variables between services.` : ''}
 ${isServerConfig ? `4. Write robust server configuration.
    - If server entry point (e.g., index.js, src/server.js): Setup standard middleware (cors, helmet, express.json), connect to databases if required, and mount routes cleanly. DO NOT put all logic in one file if the path suggests a modular structure.` : ''}
-${!isHtml && !isJson && !isDocker && !isServerConfig ? (isBoilerplate
-            ? '4. Write clean, modular, well-commented code following SOLID principles. If it is a route, controller, or model file, provide a standard CRUD scaffold that is ready to be expanded.'
+${isConfig ? '4. Write a standard, well-documented configuration file with sensible defaults and inline comments explaining each setting.' : ''}
+${!isHtml && !isJson && !isDocker && !isServerConfig && !isConfig ? (isBoilerplate
+            ? `4. Write clean, modular, well-commented code following SOLID principles. If it is a route, controller, or model file, provide a COMPLETE standard CRUD scaffold with at minimum 5 CRUD-related functions/endpoints. Each function should have proper error handling, input validation comments, and JSDoc/docstring annotations. Write at least 40-60 lines per file. The file path is: ${fileName}`
             : '4. Write clean, well-commented code with proper error handling.') : ''}`;
 
     const userMessage = `Generate the file: "${fileName}"
@@ -303,7 +306,7 @@ ${contextBlock}
 Return ONLY the raw file content, nothing else.`;
 
     try {
-        const tokens = isHtml ? 8000 : 4000;
+        const tokens = isHtml ? 8000 : (isBoilerplate ? 6000 : 4000);
         let content = await callLLM(systemPrompt, userMessage, tokens);
 
         // Strip any markdown code fences the LLM might have added

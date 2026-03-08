@@ -246,7 +246,7 @@ const Workspace = () => {
         const cleanStackItems = stackItems.map(item => item.split('-')[0].trim());
         const uniqueStack = [...new Set(cleanStackItems)].join(', ');
 
-        const boilerplateIdea = 'Production-ready Boilerplate setup with basic routing, configuration, and database connection.';
+        const boilerplateIdea = `Production-ready full-stack Boilerplate with SEPARATE frontend/ and backend/ directories. The frontend/ must have its own package.json and src/ folder with components. The backend/ must have its own package.json, src/ folder with routes/, controllers/, models/, config/, and middleware/ sub-directories. Include a root docker-compose.yml and README.md. Generate 12-18 files minimum.`;
 
         try {
             // STEP 1: Plan
