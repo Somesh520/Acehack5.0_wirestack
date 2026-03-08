@@ -43,7 +43,7 @@ const Workspace = () => {
     const folderInputRef = useRef(null);
     const [showRepoInput, setShowRepoInput] = useState(false);
     const [repoUrl, setRepoUrl] = useState('');
-    const [selectedModel, setSelectedModel] = useState('gemini'); // 'gemini' | 'groq'
+    const [selectedModel, setSelectedModel] = useState('groq'); // Use Groq as default since Gemini is buggy for user
 
     // Lifted chat state
     const [chatHistory, setChatHistory] = useState([
@@ -929,23 +929,7 @@ const Workspace = () => {
                                 </button>
                             </div>
 
-                            <p className="font-black text-xs uppercase mb-2 text-gray-400">🤖 Select AI Model</p>
-                            <div className="grid grid-cols-2 gap-2 mb-4">
-                                <button
-                                    onClick={() => setSelectedModel('gemini')}
-                                    className={`px-3 py-2 border-2 border-black font-black text-xs transition-all ${selectedModel === 'gemini' ? 'bg-[#00F0FF] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-gray-100'}`}
-                                >
-                                    GEMINI (DETAILED)
-                                </button>
-                                <button
-                                    onClick={() => setSelectedModel('groq')}
-                                    className={`px-3 py-2 border-2 border-black font-black text-xs transition-all ${selectedModel === 'groq' ? 'bg-[#33FF66] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-gray-100'}`}
-                                >
-                                    GROQ (FAST)
-                                </button>
-                            </div>
-
-                            <p className="text-[10px] text-gray-400 font-bold">Public repos only. e.g. https://github.com/facebook/react</p>
+                            <p className="text-[10px] text-gray-400 font-bold mt-1">Public repos only. e.g. https://github.com/facebook/react</p>
                         </div>
                     )}
 

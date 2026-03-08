@@ -52,10 +52,27 @@ router.post('/chat', async (req, res) => {
     ];
 
     try {
-        // ENGINE 1: PRIMARY (Google Gemini 1.5 Pro)
+        // ENGINE 1: PRIMARY (Groq Llama 3.3 70B)
+        if (process.env.GROQ_API_KEY) {
+            const chatCompletion = await groq.chat.completions.create({
+                messages: formattedHistoryGroq,
+                model: 'llama-3.3-70b-versatile',
+                temperature: 0.7,
+                max_tokens: 8000,
+            });
+
+            const reply = chatCompletion.choices[0]?.message?.content || 'Hmm, I got confused. Try again!';
+            return res.json({ reply, thoughtProcess: "I'm running on Groq (Ultra-Fast) engine.", engine: 'Groq' });
+        }
+    } catch (err) {
+        console.warn('⚠️ Groq AI Error (Falling back to Gemini):', err.message);
+    }
+
+    try {
+        // ENGINE 2: FALLBACK (Google Gemini 1.5 Pro)
         if (process.env.GEMINI_API_KEY) {
             const model = genAI.getGenerativeModel({
-                model: "gemini-1.5-pro",
+                model: "gemini-1.5-pro-latest",
                 systemInstruction: SYSTEM_PROMPT + "\n\nCRITICAL: Before providing your final response, you MUST think step-by-step. Wrap your internal thought process inside <thought>...</thought> tags. Then provide your final response to the user.",
             });
 
@@ -67,35 +84,16 @@ router.post('/chat', async (req, res) => {
             const result = await chat.sendMessage([{ text: message }]);
             let reply = result.response.text();
 
-            // Extract thoughts and clean response for the UI
             const thoughtMatch = reply.match(/<thought>([\s\S]*?)<\/thought>/);
             const thoughtProcess = thoughtMatch ? thoughtMatch[1].trim() : null;
             const cleanReply = reply.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim() || 'Hmm, I got confused. Try again!';
 
             return res.json({ reply: cleanReply, thoughtProcess, engine: 'Gemini' });
-        }
-    } catch (err) {
-        console.warn('⚠️ Gemini AI Error (Falling back to Groq):', err.message);
-    }
-
-    try {
-        // ENGINE 2: FALLBACK (Groq Llama 3)
-        if (!process.env.GROQ_API_KEY) {
+        } else {
             return res.status(500).json({ error: 'No AI providers available. Check API keys.' });
         }
-
-        const chatCompletion = await groq.chat.completions.create({
-            messages: formattedHistoryGroq,
-            model: 'llama-3.3-70b-versatile',
-            temperature: 0.7,
-            max_tokens: 8000,
-        });
-
-        const reply = chatCompletion.choices[0]?.message?.content || 'Hmm, I got confused. Try again!';
-        return res.json({ reply, thoughtProcess: "I'm running on fallback engines (Groq), so my thought logs are disabled.", engine: 'Groq' });
-
     } catch (err) {
-        console.error('❌ Groq AI Error FULL STACK:', err);
+        console.error('❌ AI Error FULL STACK:', err);
         res.status(500).json({ error: 'AI service completely unavailable', details: err.message });
     }
 });
@@ -112,23 +110,7 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
     let lastError = null;
 
     for (let attempt = 1; attempt <= retries; attempt++) {
-        // ENGINE 1: Gemini 1.5 Flash (generous free tier)
-        if (process.env.GEMINI_API_KEY && (!preferredModel || preferredModel === 'gemini')) {
-            try {
-                const model = genAI.getGenerativeModel({
-                    model: "gemini-1.5-flash",
-                    systemInstruction: systemPrompt,
-                    generationConfig: { maxOutputTokens: maxTokens },
-                });
-                const result = await model.generateContent(userMessage);
-                return result.response.text();
-            } catch (err) {
-                console.warn(`⚠️ Gemini 1.5 Flash failed (attempt ${attempt}/${retries}):`, err.message);
-                lastError = err;
-            }
-        }
-
-        // ENGINE 2: Groq Llama 3.3 70B (fast, higher quality)
+        // ENGINE 1: Groq Llama 3.3 70B (Primary now)
         if (process.env.GROQ_API_KEY && (!preferredModel || preferredModel === 'groq')) {
             try {
                 const chatCompletion = await groq.chat.completions.create({
@@ -147,10 +129,25 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
             }
         }
 
-        // ENGINE 3: Groq Llama 3.1 8B Instant (lighter model, separate rate limit)
+        // ENGINE 2: Gemini 1.5 Flash (Fallback now)
+        if (process.env.GEMINI_API_KEY && (!preferredModel || preferredModel === 'gemini')) {
+            try {
+                const model = genAI.getGenerativeModel({
+                    model: "gemini-1.5-flash-latest",
+                    systemInstruction: systemPrompt,
+                    generationConfig: { maxOutputTokens: maxTokens },
+                });
+                const result = await model.generateContent(userMessage);
+                return result.response.text();
+            } catch (err) {
+                console.warn(`⚠️ Gemini 1.5 Flash failed (attempt ${attempt}/${retries}):`, err.message);
+                lastError = err;
+            }
+        }
+
+        // ENGINE 3: Groq Llama 3.1 8B Instant (Last resort)
         if (process.env.GROQ_API_KEY) {
             try {
-                console.log(`🔄 Trying Groq 8B instant fallback (attempt ${attempt})...`);
                 const chatCompletion = await groq.chat.completions.create({
                     messages: [
                         { role: 'system', content: systemPrompt },
@@ -163,6 +160,9 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
                 return chatCompletion.choices[0]?.message?.content || '';
             } catch (err) {
                 console.warn(`⚠️ Groq 8B failed (attempt ${attempt}/${retries}):`, err.message);
+                if (err.message.includes('413') || err.message.includes('limit_exceeded')) {
+                    console.error('🚫 Token limit exceeded for Groq 8B.');
+                }
                 lastError = err;
             }
         }

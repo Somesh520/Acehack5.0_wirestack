@@ -88,4 +88,8 @@ app.post('/api/generate', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 Server listening on port ${PORT}`);
+    // Assuming connectDB() logs the MongoDB connection status.
+    // The instruction implies adding the GitHub token status after the MongoDB log.
+    // If the MongoDB log is not explicitly here, it's handled by connectDB().
+    console.log(process.env.GITHUB_TOKEN ? '✅ GitHub Token: Loaded' : '⚠️ GitHub Token: Not found (Rate limits will be low)');
 });
