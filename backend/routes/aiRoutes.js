@@ -365,14 +365,16 @@ ${isHtml ? (isBoilerplate
       - Professional navigation bar (sticky top-0, flex justify-between items-center)
       - At least 300 lines of well-structured code
    
-   D) INTERACTIVITY:
-      - Modal dialogs that open/close
-      - Tab switching between views
-      - Dynamic counters (cart badge, notification count)
-      - Form submissions that actually save data
-      - State management using a simple JavaScript store pattern
+   D) INTERACTIVITY & JAVASCRIPT RULES:
+      - ALL JavaScript MUST be enclosed inside proper <script> ... </script> tags placed just before the closing </body> tag.
+      - NEVER output raw JavaScript text directly into the HTML body.
+      - Implement modal dialogs that open/close accurately using DOM manipulation.
+      - Enable tab switching between different application views (e.g., Home vs. profile).
+      - Add dynamic counters (e.g., cart badges, notification count).
+      - Ensure form submissions actually capture data and save it to the mock API store.
+      - State management must use a simple but robust JavaScript store pattern within the <script> block.
    
-   The goal is that a hackathon judge can click through this preview and see a REAL, WORKING application.`) : ''}
+   The goal is that a hackathon judge can click through this preview and see a REAL, WORKING application without any raw code leaking onto the screen.`) : ''}
 ${isJson ? (isBoilerplate
             ? '4. Return valid JSON only. If package.json, include standard production/dev scripts (start, dev, lint, build).'
             : '4. Return valid JSON only.') : ''}
