@@ -108,27 +108,27 @@ router.post('/chat', async (req, res) => {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper: call Gemini or Groq with retry logic and exponential backoff
-async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 3) {
+async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2) {
     let lastError = null;
 
     for (let attempt = 1; attempt <= retries; attempt++) {
-        // ENGINE 1: Gemini
+        // ENGINE 1: Gemini 1.5 Flash (generous free tier)
         if (process.env.GEMINI_API_KEY) {
             try {
                 const model = genAI.getGenerativeModel({
-                    model: "gemini-2.0-flash",
+                    model: "gemini-1.5-flash",
                     systemInstruction: systemPrompt,
                     generationConfig: { maxOutputTokens: maxTokens },
                 });
                 const result = await model.generateContent(userMessage);
                 return result.response.text();
             } catch (err) {
-                console.warn(`⚠️ Gemini failed (attempt ${attempt}/${retries}):`, err.message);
+                console.warn(`⚠️ Gemini 1.5 Flash failed (attempt ${attempt}/${retries}):`, err.message);
                 lastError = err;
             }
         }
 
-        // ENGINE 2: Groq fallback
+        // ENGINE 2: Groq Llama 3.3 70B (fast, higher quality)
         if (process.env.GROQ_API_KEY) {
             try {
                 const chatCompletion = await groq.chat.completions.create({
@@ -142,12 +142,32 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 3)
                 });
                 return chatCompletion.choices[0]?.message?.content || '';
             } catch (err) {
-                console.warn(`⚠️ Groq failed (attempt ${attempt}/${retries}):`, err.message);
+                console.warn(`⚠️ Groq 70B failed (attempt ${attempt}/${retries}):`, err.message);
                 lastError = err;
             }
         }
 
-        // Wait before retrying (exponential backoff: 2s, 4s, 8s)
+        // ENGINE 3: Groq Llama 3.1 8B Instant (lighter model, separate rate limit)
+        if (process.env.GROQ_API_KEY) {
+            try {
+                console.log(`🔄 Trying Groq 8B instant fallback (attempt ${attempt})...`);
+                const chatCompletion = await groq.chat.completions.create({
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userMessage }
+                    ],
+                    model: 'llama-3.1-8b-instant',
+                    temperature: 0.7,
+                    max_tokens: maxTokens,
+                });
+                return chatCompletion.choices[0]?.message?.content || '';
+            } catch (err) {
+                console.warn(`⚠️ Groq 8B failed (attempt ${attempt}/${retries}):`, err.message);
+                lastError = err;
+            }
+        }
+
+        // Wait before retrying (exponential backoff: 2s, 4s)
         if (attempt < retries) {
             const delay = Math.pow(2, attempt) * 1000;
             console.log(`⏳ Retrying in ${delay / 1000}s...`);
