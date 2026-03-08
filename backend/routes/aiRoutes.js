@@ -469,4 +469,131 @@ Be realistic and specific with cost estimates. Use actual cloud provider pricing
     }
 });
 
+// ============================================================
+// FOLDER ANALYSIS: Upload real project files for deep analysis
+// ============================================================
+router.post('/analyze-folder', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { files, folderName } = req.body;
+    if (!files || !Array.isArray(files) || files.length === 0) {
+        return res.status(400).json({ error: 'files array is required' });
+    }
+
+    // Smart file selection: prioritize config, package, docker, env, key source files
+    const importantPatterns = [
+        /package\.json$/i, /requirements\.txt$/i, /Pipfile$/i, /go\.mod$/i, /pom\.xml$/i, /build\.gradle$/i,
+        /docker/i, /compose/i, /\.env\.example$/i, /nginx/i, /Procfile$/i,
+        /tsconfig/i, /next\.config/i, /vite\.config/i, /webpack\.config/i,
+        /^readme/i, /\.prisma$/i, /schema\./i,
+        /server\.(js|ts)$/i, /app\.(js|ts|py)$/i, /index\.(js|ts|jsx|tsx)$/i, /main\.(js|ts|py|go)$/i,
+        /routes?\//i, /middleware/i, /config\//i, /\.yaml$/i, /\.yml$/i, /\.toml$/i,
+    ];
+
+    // Pick important files (with content) — max 20 files, max 500 lines each
+    const importantFiles = [];
+    const allFileNames = files.map(f => f.name);
+
+    for (const file of files) {
+        if (importantFiles.length >= 20) break;
+        const isImportant = importantPatterns.some(p => p.test(file.name));
+        if (isImportant && file.content) {
+            const truncated = file.content.split('\n').slice(0, 500).join('\n');
+            importantFiles.push({ name: file.name, content: truncated });
+        }
+    }
+
+    // If we got less than 8, also add some source files
+    if (importantFiles.length < 8) {
+        const sourcePatterns = [/\.(js|ts|jsx|tsx|py|go|rs|java|rb)$/i];
+        for (const file of files) {
+            if (importantFiles.length >= 15) break;
+            if (importantFiles.find(f => f.name === file.name)) continue;
+            const isSource = sourcePatterns.some(p => p.test(file.name));
+            if (isSource && file.content) {
+                const truncated = file.content.split('\n').slice(0, 300).join('\n');
+                importantFiles.push({ name: file.name, content: truncated });
+            }
+        }
+    }
+
+    // Build the folder tree summary
+    const treeStr = allFileNames.slice(0, 100).join('\n');
+
+    const systemPrompt = `You are a senior cloud architect, security expert, and DevOps consultant. You are reviewing a REAL project codebase.
+
+Analyze the project structure and source code below. Provide a comprehensive analysis.
+
+Return ONLY a valid JSON object (no markdown, no backticks):
+{
+  "summary": "2-3 sentence overview of what this project is and tech stack detected",
+  "detected_stack": ["tech1", "tech2", "tech3"],
+  "cost": {
+    "monthly_estimate": "$XX - $XX/month",
+    "breakdown": [
+      { "service": "name", "provider": "AWS/GCP/Vercel/Railway/etc", "cost": "$X/mo", "note": "why this cost" }
+    ],
+    "free_tier_possible": true/false,
+    "annual_estimate": "$XXX - $XXX/year",
+    "tip": "biggest cost saving tip"
+  },
+  "security": {
+    "score": "A/B/C/D",
+    "strengths": ["what they did right"],
+    "vulnerabilities": ["specific issues found in the code"],
+    "critical_fixes": ["must-fix security issues"],
+    "recommendations": ["nice-to-have security improvements"]
+  },
+  "scalability": {
+    "score": "A/B/C/D",
+    "max_concurrent_users": "estimated range like 1K-5K",
+    "bottlenecks": ["specific bottlenecks found"],
+    "improvements": ["what to add for better scale"]
+  },
+  "architecture": {
+    "pattern": "monolith/microservices/serverless/jamstack/etc",
+    "strengths": ["good arch decisions"],
+    "weaknesses": ["arch problems"],
+    "missing_components": ["what should be added"],
+    "production_checklist": ["step1", "step2", "step3", "step4", "step5"]
+  },
+  "code_quality": {
+    "score": "A/B/C/D",
+    "issues": ["specific code quality issues"],
+    "suggestions": ["improvement suggestions"]
+  }
+}
+
+Be SPECIFIC - reference actual file names and code patterns you see. Use real cloud provider pricing for India region. Be honest about vulnerabilities.`;
+
+    const userPrompt = `Project: ${folderName || 'Uploaded Project'}
+
+FILE TREE (${allFileNames.length} files):
+${treeStr}
+
+KEY FILES:
+${importantFiles.map(f => `\n--- ${f.name} ---\n${f.content}`).join('\n')}`;
+
+    try {
+        console.log(`📂 Analyzing folder: ${folderName} (${allFileNames.length} files, ${importantFiles.length} analyzed)`);
+        const raw = await callLLM(systemPrompt, userPrompt, 4000);
+
+        let analysis;
+        try {
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            analysis = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+        } catch (parseErr) {
+            console.warn('⚠️ Folder analysis JSON parse failed');
+            analysis = { summary: raw, cost: null, security: null, scalability: null, architecture: null, code_quality: null };
+        }
+
+        res.json(analysis);
+    } catch (err) {
+        console.error('❌ Folder analysis error:', err.message);
+        res.status(500).json({ error: 'Folder analysis failed', details: err.message });
+    }
+});
+
 module.exports = router;

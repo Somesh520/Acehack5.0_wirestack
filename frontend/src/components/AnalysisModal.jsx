@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, DollarSign, Shield, TrendingUp, Box, CheckCircle, AlertTriangle, Info, Loader2 } from 'lucide-react';
+import { X, DollarSign, Shield, TrendingUp, Box, CheckCircle, Loader2, Code2, FolderOpen } from 'lucide-react';
 
 const ScoreBadge = ({ score }) => {
     const colors = {
@@ -16,7 +16,7 @@ const ScoreBadge = ({ score }) => {
     );
 };
 
-const AnalysisModal = ({ analysis, isLoading, onClose }) => {
+const AnalysisModal = ({ analysis, isLoading, onClose, folderName }) => {
     if (!isLoading && !analysis) return null;
 
     return (
@@ -25,7 +25,12 @@ const AnalysisModal = ({ analysis, isLoading, onClose }) => {
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b-4 border-black bg-[#FF3366]">
                     <h2 className="font-black text-xl uppercase tracking-wider text-white flex items-center gap-2">
-                        <TrendingUp size={20} /> PROJECT ANALYSIS
+                        <TrendingUp size={20} />
+                        {folderName ? (
+                            <span className="flex items-center gap-1"><FolderOpen size={18} /> {folderName}</span>
+                        ) : (
+                            'PROJECT ANALYSIS'
+                        )}
                     </h2>
                     <button
                         onClick={onClose}
@@ -40,7 +45,9 @@ const AnalysisModal = ({ analysis, isLoading, onClose }) => {
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-16">
                             <Loader2 className="w-12 h-12 animate-spin text-[#FF3366] mb-4" />
-                            <p className="font-black text-lg uppercase">Analyzing your stack...</p>
+                            <p className="font-black text-lg uppercase">
+                                {folderName ? 'Scanning your project folder...' : 'Analyzing your stack...'}
+                            </p>
                             <p className="text-sm text-gray-500 mt-1">Cost · Security · Scalability · Architecture</p>
                         </div>
                     ) : analysis ? (
@@ -52,6 +59,17 @@ const AnalysisModal = ({ analysis, isLoading, onClose }) => {
                                 </div>
                             )}
 
+                            {/* Detected Stack Tags */}
+                            {analysis.detected_stack?.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {analysis.detected_stack.map((tech, i) => (
+                                        <span key={i} className="px-2 py-0.5 bg-black text-white font-black text-xs uppercase border-2 border-black">
+                                            {tech}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+
                             {/* Cost Section */}
                             {analysis.cost && (
                                 <div className="border-3 border-black">
@@ -59,7 +77,12 @@ const AnalysisModal = ({ analysis, isLoading, onClose }) => {
                                         <h3 className="font-black text-sm uppercase flex items-center gap-2">
                                             <DollarSign size={16} /> DEPLOYMENT COST
                                         </h3>
-                                        <span className="font-black text-lg">{analysis.cost.monthly_estimate}</span>
+                                        <div className="text-right">
+                                            <span className="font-black text-lg">{analysis.cost.monthly_estimate}</span>
+                                            {analysis.cost.annual_estimate && (
+                                                <p className="text-[10px] font-bold opacity-70">~{analysis.cost.annual_estimate}/yr</p>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="p-3">
                                         {analysis.cost.breakdown && (
@@ -106,6 +129,14 @@ const AnalysisModal = ({ analysis, isLoading, onClose }) => {
                                         <ScoreBadge score={analysis.security.score} />
                                     </div>
                                     <div className="p-3 space-y-2">
+                                        {analysis.security.critical_fixes?.length > 0 && (
+                                            <div className="p-2 bg-red-50 border-2 border-red-400">
+                                                <p className="font-black text-xs uppercase text-red-600 mb-1">🚨 CRITICAL FIXES</p>
+                                                <ul className="text-xs font-bold space-y-0.5 text-red-700">
+                                                    {analysis.security.critical_fixes.map((f, i) => <li key={i}>• {f}</li>)}
+                                                </ul>
+                                            </div>
+                                        )}
                                         {analysis.security.strengths?.length > 0 && (
                                             <div>
                                                 <p className="font-black text-xs uppercase text-green-600 mb-1">✅ Strengths</p>
@@ -134,7 +165,7 @@ const AnalysisModal = ({ analysis, isLoading, onClose }) => {
                                 </div>
                             )}
 
-                            {/* Scalability Section */}
+                            {/* Scalability */}
                             {analysis.scalability && (
                                 <div className="border-3 border-black">
                                     <div className="bg-[#FFD700] px-4 py-2 border-b-3 border-black flex items-center justify-between">
@@ -169,7 +200,7 @@ const AnalysisModal = ({ analysis, isLoading, onClose }) => {
                                 </div>
                             )}
 
-                            {/* Architecture Section */}
+                            {/* Architecture */}
                             {analysis.architecture && (
                                 <div className="border-3 border-black">
                                     <div className="bg-[#d63aff] px-4 py-2 border-b-3 border-black">
@@ -178,6 +209,14 @@ const AnalysisModal = ({ analysis, isLoading, onClose }) => {
                                         </h3>
                                     </div>
                                     <div className="p-3 space-y-2">
+                                        {analysis.architecture.weaknesses?.length > 0 && (
+                                            <div>
+                                                <p className="font-black text-xs uppercase text-red-500 mb-1">⚠️ Weaknesses</p>
+                                                <ul className="text-xs font-bold space-y-0.5">
+                                                    {analysis.architecture.weaknesses.map((w, i) => <li key={i}>• {w}</li>)}
+                                                </ul>
+                                            </div>
+                                        )}
                                         {analysis.architecture.missing_components?.length > 0 && (
                                             <div>
                                                 <p className="font-black text-xs uppercase text-orange-500 mb-1">🧩 Missing Components</p>
@@ -195,6 +234,36 @@ const AnalysisModal = ({ analysis, isLoading, onClose }) => {
                                                             <CheckCircle size={10} className="text-green-500 shrink-0" /> {c}
                                                         </li>
                                                     ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Code Quality */}
+                            {analysis.code_quality && (
+                                <div className="border-3 border-black">
+                                    <div className="bg-[#1a1a2e] px-4 py-2 border-b-3 border-black flex items-center justify-between">
+                                        <h3 className="font-black text-sm uppercase text-white flex items-center gap-2">
+                                            <Code2 size={16} /> CODE QUALITY
+                                        </h3>
+                                        <ScoreBadge score={analysis.code_quality.score} />
+                                    </div>
+                                    <div className="p-3 space-y-2">
+                                        {analysis.code_quality.issues?.length > 0 && (
+                                            <div>
+                                                <p className="font-black text-xs uppercase text-red-500 mb-1">🐛 Issues</p>
+                                                <ul className="text-xs font-bold space-y-0.5">
+                                                    {analysis.code_quality.issues.map((issue, i) => <li key={i}>• {issue}</li>)}
+                                                </ul>
+                                            </div>
+                                        )}
+                                        {analysis.code_quality.suggestions?.length > 0 && (
+                                            <div>
+                                                <p className="font-black text-xs uppercase text-blue-600 mb-1">💡 Suggestions</p>
+                                                <ul className="text-xs font-bold space-y-0.5">
+                                                    {analysis.code_quality.suggestions.map((s, i) => <li key={i}>• {s}</li>)}
                                                 </ul>
                                             </div>
                                         )}

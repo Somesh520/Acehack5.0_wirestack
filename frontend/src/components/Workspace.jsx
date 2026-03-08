@@ -17,7 +17,7 @@ import AnalysisModal from './AnalysisModal';
 import { workflowNodeTypes } from './WorkflowNode';
 import DeveloperNode from './DeveloperNode';
 import { PIPELINE_NODES, PIPELINE_EDGES, PIPELINE_STEPS } from './pipelineConfig';
-import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut, BarChart3 } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut, BarChart3, FolderUp } from 'lucide-react';
 
 const initialNodes = [];
 const initialEdges = [];
@@ -38,6 +38,8 @@ const Workspace = () => {
     const [analysisData, setAnalysisData] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [showAnalysis, setShowAnalysis] = useState(false);
+    const [uploadedFolderName, setUploadedFolderName] = useState(null);
+    const folderInputRef = useRef(null);
 
     // Lifted chat state
     const [chatHistory, setChatHistory] = useState([
@@ -178,6 +180,77 @@ const Workspace = () => {
             setAnalysisData({ summary: 'Analysis failed. Please try again.', cost: null, security: null, scalability: null, architecture: null });
         } finally {
             setIsAnalyzing(false);
+        }
+    };
+
+    const handleFolderUpload = async (event) => {
+        const fileList = event.target.files;
+        if (!fileList || fileList.length === 0) return;
+
+        // Get folder name from the first file's path
+        const firstPath = fileList[0].webkitRelativePath || fileList[0].name;
+        const folderName = firstPath.split('/')[0] || 'Uploaded Project';
+        setUploadedFolderName(folderName);
+
+        setIsAnalyzing(true);
+        setShowAnalysis(true);
+        setAnalysisData(null);
+
+        // Exclude binary/large/irrelevant files
+        const skipPatterns = [
+            /node_modules/i, /\.git\//i, /dist\//i, /build\//i, /\.next\//i,
+            /\.(png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|mp4|mp3|zip|tar|gz|lock)$/i,
+            /package-lock\.json$/i, /yarn\.lock$/i
+        ];
+
+        const readableFiles = [];
+        const readPromises = [];
+
+        for (let i = 0; i < fileList.length && readableFiles.length < 100; i++) {
+            const file = fileList[i];
+            const path = file.webkitRelativePath || file.name;
+
+            if (skipPatterns.some(p => p.test(path))) continue;
+            if (file.size > 100 * 1024) {
+                readableFiles.push({ name: path, content: `[File too large: ${(file.size / 1024).toFixed(0)}KB]` });
+                continue;
+            }
+
+            readPromises.push(
+                new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        readableFiles.push({ name: path, content: e.target.result });
+                        resolve();
+                    };
+                    reader.onerror = () => {
+                        readableFiles.push({ name: path, content: '[Could not read file]' });
+                        resolve();
+                    };
+                    reader.readAsText(file);
+                })
+            );
+        }
+
+        await Promise.all(readPromises);
+
+        try {
+            const res = await fetch('/api/ai/analyze-folder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: readableFiles, folderName }),
+                credentials: 'include'
+            });
+
+            if (!res.ok) throw new Error('Folder analysis failed');
+            const data = await res.json();
+            setAnalysisData(data);
+        } catch (err) {
+            console.error('Folder analysis error:', err);
+            setAnalysisData({ summary: 'Folder analysis failed. Please try again.', cost: null, security: null, scalability: null, architecture: null });
+        } finally {
+            setIsAnalyzing(false);
+            if (folderInputRef.current) folderInputRef.current.value = '';
         }
     };
 
@@ -787,6 +860,24 @@ const Workspace = () => {
                         {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 size={16} />}
                         ANALYZE
                     </button>
+                    <button
+                        onClick={() => { setUploadedFolderName(null); folderInputRef.current?.click(); }}
+                        disabled={isAnalyzing}
+                        className="flex items-center gap-2 px-4 py-1.5 border-3 border-black bg-[#FF8C00] text-white font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+                    >
+                        <FolderUp size={16} />
+                        UPLOAD PROJECT
+                    </button>
+                    {/* Hidden folder input */}
+                    <input
+                        ref={folderInputRef}
+                        type="file"
+                        webkitdirectory="true"
+                        directory="true"
+                        multiple
+                        className="hidden"
+                        onChange={handleFolderUpload}
+                    />
 
                     {/* User Avatar + Logout */}
                     {user && (
@@ -894,7 +985,8 @@ const Workspace = () => {
                 <AnalysisModal
                     analysis={analysisData}
                     isLoading={isAnalyzing}
-                    onClose={() => { setShowAnalysis(false); setAnalysisData(null); }}
+                    onClose={() => { setShowAnalysis(false); setAnalysisData(null); setUploadedFolderName(null); }}
+                    folderName={uploadedFolderName}
                 />
             )}
         </div>
