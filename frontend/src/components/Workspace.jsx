@@ -957,22 +957,38 @@ const Workspace = () => {
                         {saveStatus === 'saving' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                         {saveStatus === 'saved' ? 'SAVED ✓' : saveStatus === 'error' ? 'ERROR ✗' : saveStatus === 'saving' ? 'SAVING...' : 'SAVE'}
                     </button>
-                    <button
-                        onClick={handleGenerateBoilerplate}
-                        disabled={isGenerating || nodes.length === 0}
-                        className="flex items-center gap-2 px-4 py-1.5 border-3 border-black bg-[#33FF66] font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
-                    >
-                        {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play size={16} />}
-                        GENERATE BOILERPLATE
-                    </button>
-                    <button
-                        onClick={handleAnalyzeStack}
-                        disabled={isAnalyzing || nodes.length === 0}
-                        className="flex items-center gap-2 px-4 py-1.5 border-3 border-black bg-[#FF3366] text-white font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
-                    >
-                        {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 size={16} />}
-                        ANALYZE
-                    </button>
+
+                    {/* GAMIFIED MODE BUTTON: Only show if gamified and all nodes completed */}
+                    {gamifiedMode && nodes.length > 0 && nodes.every(n => n.data.status === 'completed') ? (
+                        <button
+                            onClick={handleGenerateProject}
+                            disabled={isGenerating}
+                            className="flex items-center gap-2 px-4 py-1.5 border-3 border-black bg-[#FFD700] text-black font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all animate-pulse disabled:animate-none disabled:opacity-50"
+                        >
+                            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play size={16} />}
+                            GENERATE CODE DEMO 🚀
+                        </button>
+                    ) : (
+                        // STANDARD MODE BUTTONS
+                        <>
+                            <button
+                                onClick={handleGenerateBoilerplate}
+                                disabled={isGenerating || nodes.length === 0}
+                                className="flex items-center gap-2 px-4 py-1.5 border-3 border-black bg-[#33FF66] font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+                            >
+                                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play size={16} />}
+                                GENERATE BOILERPLATE
+                            </button>
+                            <button
+                                onClick={handleAnalyzeStack}
+                                disabled={isAnalyzing || nodes.length === 0}
+                                className="flex items-center gap-2 px-4 py-1.5 border-3 border-black bg-[#FF3366] text-white font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+                            >
+                                {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 size={16} />}
+                                ANALYZE
+                            </button>
+                        </>
+                    )}
                     <button
                         onClick={() => setShowRepoInput(!showRepoInput)}
                         disabled={isAnalyzing}
