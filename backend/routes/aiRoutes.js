@@ -57,10 +57,15 @@ router.post('/chat', async (req, res) => {
         return res.status(400).json({ error: 'Message is required' });
     }
 
-    const formattedHistoryGemini = history.map(msg => ({
+    let formattedHistoryGemini = history.map(msg => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: msg.content }]
     }));
+
+    // CRITICAL FIX: Gemini requires the first message to be from the user
+    if (formattedHistoryGemini.length > 0 && formattedHistoryGemini[0].role !== 'user') {
+        formattedHistoryGemini.shift();
+    }
 
     const formattedHistoryGroq = [
         { role: 'system', content: SYSTEM_PROMPT },
