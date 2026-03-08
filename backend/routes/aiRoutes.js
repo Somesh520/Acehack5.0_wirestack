@@ -332,15 +332,16 @@ ${isHtml ? (isBoilerplate
    
    CRITICAL STYLING RULES (DO NOT IGNORE):
    - You MUST include EXACTLY this line inside the <head> tag: <script src="https://cdn.tailwindcss.com"></script>
+   - You MUST ALSO include a fallback <style> block inside <head> with fundamental CSS resets:
+      * body { margin: 0; font-family: 'Inter', sans-serif; background-color: #0d1117; color: #c9d1d9; }
+      * .flex { display: flex; } .grid { display: grid; } .hidden { display: none; }
+      * Add beautiful custom styling for navigation bars, video grids, sidebars, and buttons using standard CSS within this <style> block, do not rely 100% on Tailwind.
    - AESTHETICS ARE CRITICAL: Design a stunning, ultra-modern UI. It MUST NOT look like a basic tutorial app.
-   - Use a sleek dark mode or vibrant, harmonious color palettes (avoid generic colors).
-   - Implement "Glassmorphism" (backdrop-blur, semi-transparent backgrounds with subtle white/colored borders).
-   - Add dynamic glowing gradients, soft shadows (shadow-2xl), and rounded corners (rounded-2xl or rounded-3xl).
-   - Use modern typography (e.g., import Google Fonts like 'Inter' or 'Outfit') instead of browser defaults.
-   - Add micro-animations (hover:scale-105, hover:translate-y-1, transition-all duration-300).
-   - Ensure the layout is 100% responsive using CSS Grid/Flexbox for mobile, tablet, and desktop views.
-   
-   THIS MUST BE A WORKING APP, NOT JUST A LANDING PAGE. Include ALL of these:
+   - Use a sleek dark mode. E.g., background: #0f172a, cards: #1e293b, primary points: #3b82f6.
+   - Implement "Glassmorphism" (backdrop-blur, semi-transparent backgrounds with subtle borders).
+   - Add dynamic glowing gradients, soft shadows, and rounded corners.
+   - Add micro-animations (hover transitions) using raw CSS inside the <style> block.
+   - Ensure the layout is 100% responsive for mobile, tablet, and desktop views (use CSS flex/grid grids).
    
    A) SIMULATED BACKEND (JavaScript mock API):
       - Create a MockAPI object that simulates REST endpoints using localStorage
