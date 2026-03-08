@@ -569,8 +569,7 @@ const Workspace = () => {
         <div className="flex h-screen w-full bg-white font-mono overflow-hidden">
             {/* Sidebar */}
             <div
-                className={`${isSidebarOpen ? 'w-80' : 'w-0'
-                    } transition - all duration - 300 border - r - 4 border - black bg - [#FFD700] relative overflow - hidden flex flex - col`}
+                className={`${isSidebarOpen ? 'w-80' : 'w-0'} transition-all duration-300 border-r-4 border-black bg-[#FFD700] relative overflow-hidden flex flex-col shrink-0 z-20`}
             >
                 <Sidebar
                     user={user}
@@ -585,8 +584,8 @@ const Workspace = () => {
             {/* Toggle Sidebar Button */}
             <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="absolute left-[314px] top-1/2 -translate-y-1/2 z-50 bg-white border-4 border-black p-1 hover:bg-black hover:text-white transition-colors"
-                style={{ left: isSidebarOpen ? '316px' : '0px' }}
+                className={`absolute top-1/2 -translate-y-1/2 z-50 bg-white border-4 border-black p-1 hover:bg-black hover:text-white transition-all duration-300`}
+                style={{ left: isSidebarOpen ? '318px' : '0px' }}
             >
                 {isSidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
             </button>
