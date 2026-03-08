@@ -62,10 +62,20 @@ router.post('/chat', async (req, res) => {
         parts: [{ text: msg.content }]
     }));
 
-    // CRITICAL FIX: Gemini requires the first message to be from the user
-    if (formattedHistoryGemini.length > 0 && formattedHistoryGemini[0].role !== 'user') {
-        formattedHistoryGemini.shift();
+    // CRITICAL FIX: Gemini requires strict alternating roles starting with 'user'
+    let sanitizedGeminiHistory = [];
+    let expectedRole = 'user';
+
+    for (const msg of formattedHistoryGemini) {
+        if (msg.role === expectedRole) {
+            sanitizedGeminiHistory.push(msg);
+            expectedRole = expectedRole === 'user' ? 'model' : 'user';
+        }
     }
+
+    // If we dropped the last message and it was supposed to be a user message (meaning the array ends with a user message already)
+    // we don't need to do anything. But if the array ends with a model message, that's fine too since we are about to append a user message manually in chat.sendMessage().
+    formattedHistoryGemini = sanitizedGeminiHistory;
 
     const formattedHistoryGroq = [
         { role: 'system', content: SYSTEM_PROMPT },
