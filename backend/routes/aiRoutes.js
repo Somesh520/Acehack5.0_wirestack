@@ -153,25 +153,31 @@ router.post('/generate-plan', async (req, res) => {
 
     const systemPrompt = isBoilerplate
         ? `You are an expert DevOps and Senior Architecture engineer. Given a tech stack, return ONLY a JSON array of a COMPLETE, production-ready boilerplate codebase structure needed to initialize the project.
-Each entry has "name" (filename WITH relative path, e.g., src/routes/userRoutes.js) and "purpose" (1-line description).
+Each entry has "name" (filename WITH relative path, e.g., backend/src/routes/api.js) and "purpose" (1-line description).
 
 RULES:
 1. Return ONLY a valid JSON array. No markdown, no text, no backticks.
-2. Include 10-15 foundational files. We want a REAL developer structure, not a toy app.
-3. ALWAYS include "package.json" or equivalent dependency manager file FIRST.
-4. ALWAYS include "Dockerfile" and "docker-compose.yml" for instant local development.
-5. ALWAYS include "README.md" explaining how to start the boilerplate via Docker.
-6. CREATE A REAL FOLDER STRUCTURE. Example paths:
-   - src/index.js
-   - src/config/db.js
-   - src/routes/api.js
-   - src/controllers/userController.js
-   - src/models/User.js
-   - src/middleware/auth.js
-7. DO NOT invent complex business logic. Just provide clean, empty scaffolding and standard imports.
+2. Include 12-18 foundational files. We want a REAL developer structure, not a toy app.
+3. CRITICAL ARCHITECTURE RULE: You MUST separate the codebase into "frontend/" and "backend/" directories if the stack contains both UI (React/Vue/Next) and Server (Express/Django) technologies.
+4. Each directory (frontend and backend) MUST have its own "package.json" or equivalent dependency file.
+5. Provide a ROOT "docker-compose.yml" that orchestrates the frontend, backend, and any databases.
+6. Provide a ROOT "README.md" explaining the architecture and how to run everything.
+7. CREATE REAL FOLDER STRUCTURES inside backend and frontend. Example paths:
+   - frontend/package.json
+   - frontend/src/App.jsx
+   - frontend/src/components/Header.jsx
+   - backend/package.json
+   - backend/src/index.js
+   - backend/src/config/db.js
+   - backend/src/routes/api.js
+   - backend/src/controllers/userController.js
+   - backend/src/models/User.js
+   - docker-compose.yml
+   - README.md
+8. DO NOT invent complex business logic. Just provide clean, empty scaffolding and standard imports.
 
 Example output:
-[{"name":"package.json","purpose":"Standard dependencies"},{"name":"src/index.js","purpose":"Basic API entry point"},{"name":"src/config/db.js","purpose":"Database connection setup"},{"name":"src/routes/api.js","purpose":"API routes definition"},{"name":"Dockerfile","purpose":"Dockerize the app"},{"name":"docker-compose.yml","purpose":"Docker Compose config"},{"name":"README.md","purpose":"Instructions to run"}]`
+[{"name":"frontend/package.json","purpose":"UI dependencies"},{"name":"frontend/src/App.jsx","purpose":"Main UI component"},{"name":"backend/package.json","purpose":"Server dependencies"},{"name":"backend/src/index.js","purpose":"Basic API entry point"},{"name":"backend/src/config/db.js","purpose":"Database connection setup"},{"name":"backend/src/routes/api.js","purpose":"API routes definition"},{"name":"docker-compose.yml","purpose":"Docker Compose config orchestrating both"},{"name":"README.md","purpose":"Instructions to run"}]`
 
         : `You are a senior software architect. Given a project idea and tech stack, return ONLY a JSON array of files needed to build the project. Each entry has "name" (filename) and "purpose" (1-line description).
 
@@ -282,8 +288,8 @@ ${isJson ? (isBoilerplate
             ? '4. Return valid JSON only. If package.json, include standard production/dev scripts (start, dev, lint, build).'
             : '4. Return valid JSON only.') : ''}
 ${isDocker ? `4. Write clean, reliable, production-ready Docker configurations.
-   - For Dockerfile: Use multi-stage builds if appropriate. Set WORKDIR, copy dependencies, run install, copy source, and expose the correct port.
-   - For docker-compose.yml: Include the backend framework service and any databases listed in the stack (e.g., postgres, redis, mongo). Map ports correctly and pass necessary ENV variables.` : ''}
+   - If this is a Dockerfile inside 'frontend/' or 'backend/', assume it only builds that specific part. Use multi-stage builds if appropriate. Set WORKDIR, copy dependencies, run install, copy source, and expose the correct port.
+   - If this is the ROOT docker-compose.yml: orchestrate the 'frontend', 'backend', and any databases listed in the stack (e.g., postgres, redis, mongo). Use 'build: ./frontend' and 'build: ./backend' directives. Map ports correctly and pass necessary ENV variables between services.` : ''}
 ${isServerConfig ? `4. Write robust server configuration.
    - If server entry point (e.g., index.js, src/server.js): Setup standard middleware (cors, helmet, express.json), connect to databases if required, and mount routes cleanly. DO NOT put all logic in one file if the path suggests a modular structure.` : ''}
 ${!isHtml && !isJson && !isDocker && !isServerConfig ? (isBoilerplate
