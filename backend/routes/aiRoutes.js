@@ -96,6 +96,7 @@ router.post('/chat', async (req, res) => {
     let lastError = null;
 
     for (const attempt of modelsToTry) {
+        console.log(`🤖 Attempting to generate response using: ${attempt.engineName}...`);
         try {
             if (attempt.provider === 'groq' && process.env.GROQ_API_KEY) {
                 const chatCompletion = await groq.chat.completions.create({
