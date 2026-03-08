@@ -278,22 +278,27 @@ const EditorPanel = ({ files, generationStatus }) => {
                         </div>
 
                         {/* Code Viewer */}
-                        <div className="flex-1 overflow-auto">
+                        <div className="flex-1 overflow-hidden flex flex-col">
                             {selectedFile ? (
-                                <div className="p-0">
+                                <div className="flex-1 flex flex-col bg-[#0d1117] text-[#c9d1d9] font-mono text-[12px] overflow-hidden">
                                     {/* File Tab */}
-                                    <div className="sticky top-0 bg-[#16213e] border-b border-gray-700 px-4 py-2 flex items-center gap-2">
-                                        {selectedFile.icon || <File size={12} />}
-                                        <span className="text-[11px] font-bold text-gray-300">{selectedFile.name}</span>
+                                    <div className="bg-[#161b22] border-b border-[#30363d] px-4 py-2 flex items-center justify-between shrink-0">
+                                        <div className="flex items-center gap-2">
+                                            {selectedFile.icon || <File size={14} />}
+                                            <span className="font-semibold text-[#e6edf3] tracking-wide">{selectedFile.name}</span>
+                                        </div>
                                     </div>
-                                    {/* Code Lines */}
-                                    <div className="text-[11px] leading-relaxed">
+
+                                    {/* Code Content */}
+                                    <div className="flex-1 overflow-auto py-2">
                                         {lineNumbers(formatContent(selectedFile)).map((line, i) => (
-                                            <div key={i} className="flex hover:bg-white/5 transition-colors">
-                                                <span className="w-10 text-right px-2 text-gray-600 select-none shrink-0 border-r border-gray-800">
+                                            <div key={i} className="flex hover:bg-[#161b22] transition-colors group">
+                                                {/* Gutter */}
+                                                <div className="w-12 shrink-0 text-right pr-4 select-none text-[#6e7681] border-r border-[#30363d] group-hover:text-[#c9d1d9] transition-colors">
                                                     {i + 1}
-                                                </span>
-                                                <pre className="px-4 whitespace-pre-wrap break-all flex-1">
+                                                </div>
+                                                {/* Line Content */}
+                                                <pre className="pl-4 pr-8 m-0 whitespace-pre break-normal">
                                                     <code>{line || ' '}</code>
                                                 </pre>
                                             </div>
@@ -355,7 +360,7 @@ const EditorPanel = ({ files, generationStatus }) => {
                     </p>
                 </div>
             )}
-        </div>
+        </div >
     );
 };
 
