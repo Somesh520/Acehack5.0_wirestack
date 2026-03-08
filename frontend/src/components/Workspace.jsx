@@ -54,13 +54,24 @@ const Workspace = () => {
             .catch(err => console.error('Error fetching user:', err));
     }, []);
 
-    // Fetch workspaces
+    // Fetch workspaces and auto-select the most recent one
     useEffect(() => {
         if (user) {
             fetch('/api/workspace', { credentials: 'include' })
                 .then(res => res.json())
                 .then(data => {
-                    if (Array.isArray(data)) setWorkspaces(data);
+                    if (Array.isArray(data)) {
+                        setWorkspaces(data);
+                        // Auto-select the first (most recent) workspace and restore its canvas
+                        if (data.length > 0 && !activeWorkspace) {
+                            setActiveWorkspace(data[0]);
+                            setNodes(data[0].nodes || []);
+                            setEdges(data[0].edges || []);
+                            if (data[0].chat_history?.length > 0) {
+                                setChatHistory(data[0].chat_history);
+                            }
+                        }
+                    }
                 })
                 .catch(err => console.error('Error fetching workspaces:', err));
         }
@@ -78,10 +89,10 @@ const Workspace = () => {
             const ws = await res.json();
             setWorkspaces(prev => [ws, ...prev]);
             setActiveWorkspace(ws);
-            setNodes([]);
-            setEdges([]);
+            return ws; // Return the newly created workspace
         } catch (err) {
             console.error('Error creating workspace:', err);
+            return null;
         }
     };
 
@@ -89,18 +100,24 @@ const Workspace = () => {
         setActiveWorkspace(ws);
         setNodes(ws.nodes || []);
         setEdges(ws.edges || []);
+        if (ws.chat_history?.length > 0) {
+            setChatHistory(ws.chat_history);
+        }
     };
 
     const handleSaveWorkspace = async () => {
-        if (!activeWorkspace?._id) {
-            // Auto-create a workspace if none exists
-            await handleCreateWorkspace();
-            return;
+        let workspaceId = activeWorkspace?._id;
+
+        // Auto-create a workspace if none exists, then save into it
+        if (!workspaceId) {
+            const newWs = await handleCreateWorkspace();
+            if (!newWs?._id) return;
+            workspaceId = newWs._id;
         }
 
         setSaveStatus('saving');
         try {
-            const res = await fetch(`/api/workspace/${activeWorkspace._id}`, {
+            const res = await fetch(`/api/workspace/${workspaceId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -114,6 +131,8 @@ const Workspace = () => {
             if (!res.ok) throw new Error('Save failed');
             const updated = await res.json();
             setActiveWorkspace(updated);
+            // Also update the workspace in the list
+            setWorkspaces(prev => prev.map(ws => ws._id === updated._id ? updated : ws));
             setSaveStatus('saved');
             setTimeout(() => setSaveStatus(null), 2000);
         } catch (err) {
@@ -647,8 +666,10 @@ const Workspace = () => {
                             <div className="absolute top-full left-0 mt-2 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] min-w-[220px] z-50">
                                 {/* New Project Button */}
                                 <button
-                                    onClick={() => {
-                                        handleCreateWorkspace();
+                                    onClick={async () => {
+                                        await handleCreateWorkspace();
+                                        setNodes([]);
+                                        setEdges([]);
                                         setGeneratedFiles(null);
                                         setShowProjectMenu(false);
                                     }}
