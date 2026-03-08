@@ -265,11 +265,16 @@ const Workspace = () => {
             const projectTree = { name: 'developer-boilerplate', children: [] };
             setGeneratedFiles({ ...projectTree });
 
-            // STEP 2: Generate
+            // STEP 2: Generate each file one by one (with delay to avoid rate limits)
             const generatedSoFar = [];
             for (let i = 0; i < plan.length; i++) {
                 const file = plan[i];
                 setGenerationStatus(`⚡ Generating ${file.name} (${i + 1}/${plan.length})...`);
+
+                // Add small delay between API calls to avoid rate limiting
+                if (i > 0) {
+                    await new Promise(r => setTimeout(r, 1500));
+                }
 
                 const fileRes = await fetch('/api/ai/generate-file', {
                     method: 'POST',

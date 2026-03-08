@@ -104,38 +104,58 @@ router.post('/chat', async (req, res) => {
 // SEQUENTIAL CODE GENERATION PIPELINE
 // ============================================================
 
-// Helper: call Gemini or Groq with a given system prompt + user message
-async function callLLM(systemPrompt, userMessage, maxTokens = 4000) {
-    // ENGINE 1: Gemini
-    if (process.env.GEMINI_API_KEY) {
-        try {
-            const model = genAI.getGenerativeModel({
-                model: "gemini-2.0-flash",
-                systemInstruction: systemPrompt,
-                generationConfig: { maxOutputTokens: maxTokens },
-            });
-            const result = await model.generateContent(userMessage);
-            return result.response.text();
-        } catch (err) {
-            console.warn('⚠️ Gemini failed, falling back to Groq:', err.message);
+// Helper: sleep for ms milliseconds
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper: call Gemini or Groq with retry logic and exponential backoff
+async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 3) {
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        // ENGINE 1: Gemini
+        if (process.env.GEMINI_API_KEY) {
+            try {
+                const model = genAI.getGenerativeModel({
+                    model: "gemini-2.0-flash",
+                    systemInstruction: systemPrompt,
+                    generationConfig: { maxOutputTokens: maxTokens },
+                });
+                const result = await model.generateContent(userMessage);
+                return result.response.text();
+            } catch (err) {
+                console.warn(`⚠️ Gemini failed (attempt ${attempt}/${retries}):`, err.message);
+                lastError = err;
+            }
+        }
+
+        // ENGINE 2: Groq fallback
+        if (process.env.GROQ_API_KEY) {
+            try {
+                const chatCompletion = await groq.chat.completions.create({
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userMessage }
+                    ],
+                    model: 'llama-3.3-70b-versatile',
+                    temperature: 0.7,
+                    max_tokens: maxTokens,
+                });
+                return chatCompletion.choices[0]?.message?.content || '';
+            } catch (err) {
+                console.warn(`⚠️ Groq failed (attempt ${attempt}/${retries}):`, err.message);
+                lastError = err;
+            }
+        }
+
+        // Wait before retrying (exponential backoff: 2s, 4s, 8s)
+        if (attempt < retries) {
+            const delay = Math.pow(2, attempt) * 1000;
+            console.log(`⏳ Retrying in ${delay / 1000}s...`);
+            await sleep(delay);
         }
     }
 
-    // ENGINE 2: Groq fallback
-    if (process.env.GROQ_API_KEY) {
-        const chatCompletion = await groq.chat.completions.create({
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userMessage }
-            ],
-            model: 'llama-3.3-70b-versatile',
-            temperature: 0.7,
-            max_tokens: maxTokens,
-        });
-        return chatCompletion.choices[0]?.message?.content || '';
-    }
-
-    throw new Error('No AI providers available');
+    throw lastError || new Error('No AI providers available after retries');
 }
 
 // STEP 1: Generate the file plan (tiny JSON)
