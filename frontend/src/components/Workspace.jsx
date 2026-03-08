@@ -959,7 +959,7 @@ const Workspace = () => {
                     </button>
 
                     {/* GAMIFIED MODE BUTTON: Only show if gamified and all nodes completed */}
-                    {gamifiedMode && nodes.length > 0 && nodes.every(n => n.data.status === 'completed') ? (
+                    {user?.user_type === 'learner' && nodes.length > 0 && nodes.every(n => n.data.status === 'completed') ? (
                         <button
                             onClick={handleGenerateProject}
                             disabled={isGenerating}
