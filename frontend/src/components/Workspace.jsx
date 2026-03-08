@@ -43,6 +43,7 @@ const Workspace = () => {
     const folderInputRef = useRef(null);
     const [showRepoInput, setShowRepoInput] = useState(false);
     const [repoUrl, setRepoUrl] = useState('');
+    const [selectedModel, setSelectedModel] = useState('gemini'); // 'gemini' | 'groq'
 
     // Lifted chat state
     const [chatHistory, setChatHistory] = useState([
@@ -171,7 +172,7 @@ const Workspace = () => {
             const res = await fetch('/api/ai/analyze-stack', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stack: stackNames }),
+                body: JSON.stringify({ stack: stackNames, model: selectedModel }),
                 credentials: 'include'
             });
 
@@ -241,7 +242,7 @@ const Workspace = () => {
             const res = await fetch('/api/ai/analyze-folder', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ files: readableFiles, folderName }),
+                body: JSON.stringify({ files: readableFiles, folderName, model: selectedModel }),
                 credentials: 'include'
             });
 
@@ -272,7 +273,7 @@ const Workspace = () => {
             const res = await fetch('/api/ai/analyze-repo', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ repoUrl: repoUrl.trim() }),
+                body: JSON.stringify({ repoUrl: repoUrl.trim(), model: selectedModel }),
                 credentials: 'include'
             });
 
@@ -907,9 +908,9 @@ const Workspace = () => {
 
                     {/* GitHub Repo URL Input Dropdown */}
                     {showRepoInput && (
-                        <div className="absolute right-[200px] top-[52px] z-50 bg-white border-3 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-3 w-[400px]">
-                            <p className="font-black text-xs uppercase mb-2">🔗 Enter GitHub Repo URL</p>
-                            <div className="flex gap-2">
+                        <div className="absolute right-[200px] top-[52px] z-50 bg-white border-3 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-4 w-[400px]">
+                            <p className="font-black text-xs uppercase mb-2 text-gray-400">🔗 Enter GitHub Repo URL</p>
+                            <div className="flex gap-2 mb-4">
                                 <input
                                     type="text"
                                     value={repoUrl}
@@ -927,7 +928,24 @@ const Workspace = () => {
                                     ANALYZE
                                 </button>
                             </div>
-                            <p className="text-[10px] text-gray-400 font-bold mt-1">Public repos only. e.g. https://github.com/facebook/react</p>
+
+                            <p className="font-black text-xs uppercase mb-2 text-gray-400">🤖 Select AI Model</p>
+                            <div className="grid grid-cols-2 gap-2 mb-4">
+                                <button
+                                    onClick={() => setSelectedModel('gemini')}
+                                    className={`px-3 py-2 border-2 border-black font-black text-xs transition-all ${selectedModel === 'gemini' ? 'bg-[#00F0FF] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-gray-100'}`}
+                                >
+                                    GEMINI (DETAILED)
+                                </button>
+                                <button
+                                    onClick={() => setSelectedModel('groq')}
+                                    className={`px-3 py-2 border-2 border-black font-black text-xs transition-all ${selectedModel === 'groq' ? 'bg-[#33FF66] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-gray-100'}`}
+                                >
+                                    GROQ (FAST)
+                                </button>
+                            </div>
+
+                            <p className="text-[10px] text-gray-400 font-bold">Public repos only. e.g. https://github.com/facebook/react</p>
                         </div>
                     )}
 

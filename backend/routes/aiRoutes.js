@@ -108,12 +108,12 @@ router.post('/chat', async (req, res) => {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper: call Gemini or Groq with retry logic and exponential backoff
-async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2) {
+async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2, preferredModel = null) {
     let lastError = null;
 
     for (let attempt = 1; attempt <= retries; attempt++) {
         // ENGINE 1: Gemini 1.5 Flash (generous free tier)
-        if (process.env.GEMINI_API_KEY) {
+        if (process.env.GEMINI_API_KEY && (!preferredModel || preferredModel === 'gemini')) {
             try {
                 const model = genAI.getGenerativeModel({
                     model: "gemini-1.5-flash",
@@ -129,7 +129,7 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2)
         }
 
         // ENGINE 2: Groq Llama 3.3 70B (fast, higher quality)
-        if (process.env.GROQ_API_KEY) {
+        if (process.env.GROQ_API_KEY && (!preferredModel || preferredModel === 'groq')) {
             try {
                 const chatCompletion = await groq.chat.completions.create({
                     messages: [
@@ -408,7 +408,7 @@ router.post('/analyze-stack', async (req, res) => {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { stack } = req.body;
+    const { stack, model } = req.body;
     if (!stack || !Array.isArray(stack) || stack.length === 0) {
         return res.status(400).json({ error: 'stack array is required (list of tech names)' });
     }
@@ -450,7 +450,7 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no backt
 Be realistic and specific with cost estimates. Use actual cloud provider pricing. Consider the Indian developer context (budget-friendly options).`;
 
     try {
-        const raw = await callLLM(systemPrompt, `Analyze this tech stack: ${stackList}`, 4000);
+        const raw = await callLLM(systemPrompt, `Analyze this tech stack: ${stackList}`, 4000, 2, model);
 
         // Extract JSON from response
         let analysis;
@@ -477,7 +477,7 @@ router.post('/analyze-folder', async (req, res) => {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { files, folderName } = req.body;
+    const { files, folderName, model } = req.body;
     if (!files || !Array.isArray(files) || files.length === 0) {
         return res.status(400).json({ error: 'files array is required' });
     }
@@ -577,8 +577,8 @@ KEY FILES:
 ${importantFiles.map(f => `\n--- ${f.name} ---\n${f.content}`).join('\n')}`;
 
     try {
-        console.log(`📂 Analyzing folder: ${folderName} (${allFileNames.length} files, ${importantFiles.length} analyzed)`);
-        const raw = await callLLM(systemPrompt, userPrompt, 4000);
+        console.log(`📂 Analyzing folder: ${folderName} (${allFileNames.length} files, ${importantFiles.length} analyzed) using ${model || 'default'} model`);
+        const raw = await callLLM(systemPrompt, userPrompt, 4000, 2, model);
 
         let analysis;
         try {
@@ -604,7 +604,7 @@ router.post('/analyze-repo', async (req, res) => {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { repoUrl } = req.body;
+    const { repoUrl, model } = req.body;
     if (!repoUrl) {
         return res.status(400).json({ error: 'repoUrl is required' });
     }
@@ -626,8 +626,16 @@ router.post('/analyze-repo', async (req, res) => {
         console.log(`🔍 Analyzing GitHub repo: ${owner}/${repo}`);
 
         // 1. Fetch repo file tree recursively
+        const githubHeaders = {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'WireStack-Analyzer'
+        };
+        if (process.env.GITHUB_TOKEN) {
+            githubHeaders['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
+        }
+
         const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`, {
-            headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'WireStack-Analyzer' }
+            headers: githubHeaders
         });
 
         if (!treeRes.ok) {
@@ -696,7 +704,7 @@ router.post('/analyze-repo', async (req, res) => {
             filesToFetch.map(async (path) => {
                 try {
                     const fileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
-                        headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'WireStack-Analyzer' }
+                        headers: githubHeaders
                     });
                     if (!fileRes.ok) return { name: path, content: '[Could not fetch]' };
                     const fileData = await fileRes.json();
@@ -774,7 +782,7 @@ ${treeStr}
 KEY FILES (${fileContents.length} analyzed):
 ${fileContents.map(f => `\n--- ${f.name} ---\n${f.content}`).join('\n')}`;
 
-        const raw = await callLLM(systemPrompt, userPrompt, 4000);
+        const raw = await callLLM(systemPrompt, userPrompt, 4000, 2, model);
 
         let analysis;
         try {
