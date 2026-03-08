@@ -690,6 +690,15 @@ const Workspace = () => {
                                     {user.first_name} {user.last_name}
                                 </h3>
                                 <p className="text-[9px] font-bold text-gray-400 truncate mt-0.5">{user.email}</p>
+                                <div
+                                    onClick={handleToggleUserType}
+                                    className="flex items-center gap-1 mt-1 cursor-pointer group select-none"
+                                >
+                                    <span className="text-[8px] font-black uppercase text-black bg-[#FFD700] px-1.5 py-0.5 border-2 border-black group-hover:bg-[#00F0FF] transition-all">
+                                        {user?.user_type}
+                                    </span>
+                                    <Settings size={10} className="text-gray-400 group-hover:text-black group-hover:rotate-90 transition-all" />
+                                </div>
                             </div>
                             <button
                                 onClick={() => window.location.href = '/api/auth/logout'}
