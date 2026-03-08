@@ -46,7 +46,7 @@ const nodeTypes = [
     { id: 'auth', label: 'Google Auth', icon: <ShieldCheck className="w-6 h-6" />, color: 'bg-[#ea4335]', textColor: 'text-white', description: 'Google OAuth integration' },
 ];
 
-const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, onSelectWorkspace, onSuggestComponents }) => {
+const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, onSelectWorkspace, onSuggestComponents, compact = false }) => {
     const isNoCode = user?.user_type === 'non-developer';
     const [activeTab, setActiveTab] = useState('workspaces'); // 'workspaces' | 'chat'
 
@@ -68,20 +68,16 @@ const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, on
                             <img src={user.profile_picture} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center font-black text-xl">
-                                {user.first_name?.[0] || 'U'}
+                                {user.first_name?.[0]}
                             </div>
                         )}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-xs uppercase truncate leading-none">
-                            {user.first_name} {user.last_name}
-                        </h3>
-                        <p className="text-[10px] font-bold text-gray-500 truncate mt-1">{user.email}</p>
+                        <p className="font-black text-sm uppercase truncate">{user.first_name} {user.last_name}</p>
+                        <p className="text-[10px] text-gray-600 font-bold truncate">{user.email}</p>
                     </div>
                     <button
-                        onClick={() => {
-                            window.location.href = '/api/auth/logout';
-                        }}
+                        onClick={() => window.location.href = '/api/auth/logout'}
                         className="p-1 border-2 border-black hover:bg-black hover:text-white transition-colors"
                     >
                         <LogOut size={14} />
@@ -98,6 +94,33 @@ const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, on
 
     // ===== DEVELOPER SIDEBAR =====
     if (!isNoCode) {
+        // Compact mode: just the tech tiles, no profile/header
+        if (compact) {
+            return (
+                <aside className="h-full flex flex-col overflow-y-auto p-2">
+                    <div className="space-y-2">
+                        {nodeTypes.map((node) => (
+                            <div
+                                key={node.id}
+                                className={`cursor-grab p-2 border-3 border-black ${node.color} ${node.textColor || 'text-black'} shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all`}
+                                onDragStart={(event) => onDragStart(event, node.id)}
+                                draggable
+                            >
+                                <div className="flex items-center gap-2">
+                                    <div className="bg-white p-1 border-2 border-black text-black shrink-0">
+                                        {React.cloneElement(node.icon, { className: 'w-4 h-4' })}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h3 className="font-black text-xs uppercase truncate">{node.label}</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </aside>
+            );
+        }
+
         return (
             <aside className="p-6 h-full flex flex-col overflow-y-auto">
                 <div className="mb-8">

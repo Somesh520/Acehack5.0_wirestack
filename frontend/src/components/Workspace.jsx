@@ -590,112 +590,117 @@ const Workspace = () => {
     };
 
     return (
-        <div className="flex h-screen w-full bg-white font-mono overflow-hidden">
-            {/* Sidebar */}
-            <div
-                className={`${isSidebarOpen ? 'w-80' : 'w-0'} transition-all duration-300 border-r-4 border-black bg-[#FFD700] relative overflow-hidden flex flex-col shrink-0 z-20`}
-            >
-                <Sidebar
-                    user={user}
-                    workspaces={workspaces}
-                    activeWorkspace={activeWorkspace}
-                    onCreateWorkspace={handleCreateWorkspace}
-                    onSelectWorkspace={handleSelectWorkspace}
-                    onSuggestComponents={handleSuggestComponents}
-                />
-            </div>
+        <div className="flex flex-col h-screen w-full bg-white font-mono overflow-hidden">
+            {/* ===== TOP NAVBAR (full width) ===== */}
+            <header className="h-14 border-b-4 border-black bg-white flex items-center justify-between px-4 z-30 shrink-0">
+                <div className="flex items-center gap-3">
+                    <div className="bg-black text-white p-1 font-black text-lg px-2 border-2 border-black">WS</div>
+                    <h1 className="font-black text-lg uppercase tracking-tighter">
+                        <span className="text-gray-500">Workspace /</span> <span className="text-[#FF3366]">{activeWorkspace?.name || 'MyProject-1'}</span>
+                    </h1>
+                    {user && (
+                        <span className="ml-2 font-bold text-xs bg-black text-white px-2 py-1">
+                            HELLO, {user.first_name?.toUpperCase()}!
+                        </span>
+                    )}
+                    <span className="text-xs font-black uppercase text-gray-400 ml-2">
+                        Role: <span className="text-black bg-[#FFD700] px-2 py-0.5 border-2 border-black ml-1">{user?.user_type}</span>
+                    </span>
+                </div>
 
-            {/* Toggle Sidebar Button */}
-            <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className={`absolute top-1/2 -translate-y-1/2 z-50 bg-white border-4 border-black p-1 hover:bg-black hover:text-white transition-all duration-300`}
-                style={{ left: isSidebarOpen ? '318px' : '0px' }}
-            >
-                {isSidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
-            </button>
+                <div className="flex items-center gap-3">
+                    <button className="flex items-center gap-2 px-3 py-1.5 border-3 border-black bg-[#00F0FF] font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all">
+                        <Save size={16} /> SAVE
+                    </button>
+                    <button
+                        onClick={handleGenerateBoilerplate}
+                        disabled={isGenerating || nodes.length === 0}
+                        className="flex items-center gap-2 px-4 py-1.5 border-3 border-black bg-[#33FF66] font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+                    >
+                        {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play size={16} />}
+                        GENERATE BOILERPLATE
+                    </button>
+                    <button className="p-1.5 border-3 border-black bg-white hover:bg-gray-100">
+                        <Settings size={18} />
+                    </button>
+                </div>
+            </header>
 
-            {/* Main Workspace Area */}
-            <div className="flex-1 flex flex-col relative" ref={reactFlowWrapper}>
-                {/* Top Navbar */}
-                <header className="h-16 border-b-4 border-black bg-white flex items-center justify-between px-6 z-10 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-black text-white p-1 font-black text-xl px-3 border-2 border-black">WS</div>
-                        <h1 className="font-black text-xl uppercase tracking-tighter">Workspace / <span className="text-[#FF3366]">{activeWorkspace?.name || 'MyProject-1'}</span></h1>
-                        {user && (
-                            <span className="ml-4 font-bold text-sm bg-black text-white px-2 py-1">
-                                HELLO, {user.first_name?.toUpperCase()}!
-                            </span>
-                        )}
+            {/* ===== MAIN CONTENT AREA (sidebar + canvas + editor) ===== */}
+            <div className="flex-1 flex overflow-hidden" ref={reactFlowWrapper}>
+
+                {/* LEFT: Tech Sidebar */}
+                <div className={`${isSidebarOpen ? 'w-52' : 'w-0'} transition-all duration-300 border-r-4 border-black bg-[#FFD700] relative overflow-hidden flex flex-col shrink-0 z-20`}>
+                    <div className="p-3 border-b-3 border-black bg-black/10">
+                        <h2 className="font-black text-sm uppercase tracking-wider flex items-center gap-2">
+                            <Box size={14} /> TECH STACK
+                        </h2>
+                        <p className="text-[10px] font-bold text-gray-700 mt-0.5">Drag to canvas →</p>
                     </div>
+                    <Sidebar
+                        user={user}
+                        workspaces={workspaces}
+                        activeWorkspace={activeWorkspace}
+                        onCreateWorkspace={handleCreateWorkspace}
+                        onSelectWorkspace={handleSelectWorkspace}
+                        onSuggestComponents={handleSuggestComponents}
+                        compact={true}
+                    />
+                </div>
 
-                    <div className="flex items-center gap-4 text-xs font-black uppercase text-gray-500 mr-4">
-                        Role: <span className="text-black bg-gray-200 px-2 border-2 border-black ml-1">{user?.user_type}</span>
-                    </div>
+                {/* Toggle Sidebar Button */}
+                <button
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="absolute top-1/2 -translate-y-1/2 z-50 bg-white border-3 border-black p-0.5 hover:bg-black hover:text-white transition-all duration-300"
+                    style={{ left: isSidebarOpen ? '206px' : '0px', top: '50%' }}
+                >
+                    {isSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+                </button>
 
-                    <div className="flex items-center gap-4">
-                        <button className="flex items-center gap-2 px-4 py-2 border-4 border-black bg-[#00F0FF] font-black hover:translate-x-1 hover:translate-y-1 hover:shadow-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
-                            <Save size={20} /> SAVE
-                        </button>
-                        <button
-                            onClick={handleGenerateBoilerplate}
-                            disabled={isGenerating || nodes.length === 0}
-                            className="flex items-center gap-2 px-6 py-2 border-4 border-black bg-[#33FF66] font-black hover:translate-x-1 hover:translate-y-1 hover:shadow-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
-                        >
-                            {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play size={20} />}
-                            GENERATE BOILERPLATE
-                        </button>
-                        <button className="p-2 border-4 border-black bg-white hover:bg-gray-100">
-                            <Settings size={24} />
-                        </button>
-                    </div>
-                </header>
+                {/* CENTER: ReactFlow Canvas */}
+                <div className="flex-1 relative">
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={onConnect}
+                        onDrop={onDrop}
+                        onDragOver={onDragOver}
+                        nodeTypes={developerNodeTypes}
+                        fitView
+                    >
+                        <Background color="#000" variant="dots" gap={20} size={1} />
+                        <Controls className="!bg-white !border-3 !border-black !shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" />
+                        <MiniMap
+                            className="!bg-white !border-3 !border-black !shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                            nodeColor={() => '#FF3366'}
+                            maskColor="rgba(0, 0, 0, 0.1)"
+                        />
+                    </ReactFlow>
 
-                {/* Canvas */}
-                <div className="flex-1 relative flex">
-                    <div className="flex-1 relative">
-                        <ReactFlow
-                            nodes={nodes}
-                            edges={edges}
-                            onNodesChange={onNodesChange}
-                            onEdgesChange={onEdgesChange}
-                            onConnect={onConnect}
-                            onDrop={onDrop}
-                            onDragOver={onDragOver}
-                            nodeTypes={developerNodeTypes}
-                            fitView
-                        >
-                            <Background color="#000" variant="dots" gap={20} size={1} />
-                            <Controls className="!bg-white !border-4 !border-black !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" />
-                            <MiniMap
-                                className="!bg-white !border-4 !border-black !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                                nodeColor={() => '#FF3366'}
-                                maskColor="rgba(0, 0, 0, 0.1)"
-                            />
-                        </ReactFlow>
-
-                        {/* Loading Overlay for Generation */}
-                        {isGenerating && (
-                            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                                <div className="bg-white border-4 border-black p-8 flex flex-col items-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-md">
-                                    <Loader2 className="w-16 h-16 animate-spin text-[#FFD700] mb-4" />
-                                    <h2 className="font-black text-2xl uppercase tracking-widest text-[#FF3366]">Scaffolding Code...</h2>
-                                    {generationStatus && (
-                                        <p className="font-bold text-sm text-gray-700 mt-3 text-center bg-gray-100 border-2 border-black px-4 py-2">
-                                            {generationStatus}
-                                        </p>
-                                    )}
-                                </div>
+                    {/* Loading Overlay */}
+                    {isGenerating && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                            <div className="bg-white border-4 border-black p-6 flex flex-col items-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] max-w-sm">
+                                <Loader2 className="w-12 h-12 animate-spin text-[#FFD700] mb-3" />
+                                <h2 className="font-black text-xl uppercase tracking-widest text-[#FF3366]">Scaffolding...</h2>
+                                {generationStatus && (
+                                    <p className="font-bold text-xs text-gray-700 mt-2 text-center bg-gray-100 border-2 border-black px-3 py-1.5">
+                                        {generationStatus}
+                                    </p>
+                                )}
                             </div>
-                        )}
-                    </div>
-
-                    {/* Developer Editor Overlay/Split Panel */}
-                    {(generatedFiles || isGenerating) && (
-                        <div className="w-[400px] shrink-0 border-l-4 border-black bg-[#1a1a2e] relative z-40 flex flex-col">
-                            <EditorPanel files={generatedFiles} generationStatus={generationStatus} />
                         </div>
                     )}
                 </div>
+
+                {/* RIGHT: Editor Panel (slides in when files generated) */}
+                {(generatedFiles || isGenerating) && (
+                    <div className="w-[380px] shrink-0 border-l-4 border-black bg-[#1a1a2e] relative z-40 flex flex-col">
+                        <EditorPanel files={generatedFiles} generationStatus={generationStatus} />
+                    </div>
+                )}
             </div>
         </div>
     );
