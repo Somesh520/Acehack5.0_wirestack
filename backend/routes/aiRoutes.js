@@ -152,19 +152,26 @@ router.post('/generate-plan', async (req, res) => {
     const isBoilerplate = idea.toLowerCase().includes('boilerplate');
 
     const systemPrompt = isBoilerplate
-        ? `You are an expert DevOps and Architecture engineer. Given a tech stack, return ONLY a JSON array of essential boilerplate files needed to initialize the project. Each entry has "name" (filename, can include basic paths like src/index.js) and "purpose" (1-line description).
+        ? `You are an expert DevOps and Senior Architecture engineer. Given a tech stack, return ONLY a JSON array of a COMPLETE, production-ready boilerplate codebase structure needed to initialize the project.
+Each entry has "name" (filename WITH relative path, e.g., src/routes/userRoutes.js) and "purpose" (1-line description).
 
 RULES:
 1. Return ONLY a valid JSON array. No markdown, no text, no backticks.
-2. Include 5-8 foundational files maximum (e.g., package.json, basic config, main entry).
-3. ALWAYS include "package.json" as the FIRST file.
+2. Include 10-15 foundational files. We want a REAL developer structure, not a toy app.
+3. ALWAYS include "package.json" or equivalent dependency manager file FIRST.
 4. ALWAYS include "Dockerfile" and "docker-compose.yml" for instant local development.
 5. ALWAYS include "README.md" explaining how to start the boilerplate via Docker.
-6. Do NOT invent complex business logic. Just provide clean, empty scaffolding.
-7. File names should be flat (no folders), just filenames, unless absolutely necessary.
+6. CREATE A REAL FOLDER STRUCTURE. Example paths:
+   - src/index.js
+   - src/config/db.js
+   - src/routes/api.js
+   - src/controllers/userController.js
+   - src/models/User.js
+   - src/middleware/auth.js
+7. DO NOT invent complex business logic. Just provide clean, empty scaffolding and standard imports.
 
 Example output:
-[{"name":"package.json","purpose":"Standard dependencies"},{"name":"server.js","purpose":"Basic API setup"},{"name":"Dockerfile","purpose":"Dockerize the app"},{"name":"docker-compose.yml","purpose":"Docker Compose config"},{"name":"README.md","purpose":"Instructions to run"}]`
+[{"name":"package.json","purpose":"Standard dependencies"},{"name":"src/index.js","purpose":"Basic API entry point"},{"name":"src/config/db.js","purpose":"Database connection setup"},{"name":"src/routes/api.js","purpose":"API routes definition"},{"name":"Dockerfile","purpose":"Dockerize the app"},{"name":"docker-compose.yml","purpose":"Docker Compose config"},{"name":"README.md","purpose":"Instructions to run"}]`
 
         : `You are a senior software architect. Given a project idea and tech stack, return ONLY a JSON array of files needed to build the project. Each entry has "name" (filename) and "purpose" (1-line description).
 
@@ -228,10 +235,10 @@ router.post('/generate-file', async (req, res) => {
 
 RULES:
 1. Return ONLY the file content. No markdown backticks, no explanations, no conversation.
-2. Write REAL, working, professional code that would impress hackathon judges.
+2. Write REAL, working, professional code that an enterprise developer would use.
 3. The code should be for: "${idea}" using stack: ${stack}.
 ${isHtml ? (isBoilerplate
-            ? `4. Write a simple, clean, and elegant placeholder HTML file indicating the boilerplate is successfully running. Include Tailwind via CDN if Tailwind is in the stack. Do NOT build a complex application.`
+            ? `4. Write a clean, minimal placeholder HTML summarizing the boilerplate stack. Include Tailwind via CDN if Tailwind is in the stack. DO NOT build a complex application.`
             : `4. This is the MAIN DEMO FILE. You must create a FULLY FUNCTIONAL, INTERACTIVE single-page application.
    
    CRITICAL STYLING RULES (DO NOT IGNORE):
@@ -271,14 +278,17 @@ ${isHtml ? (isBoilerplate
       - State management using a simple JavaScript store pattern
    
    The goal is that a hackathon judge can click through this preview and see a REAL, WORKING application.`) : ''}
-${isJson ? '4. Return valid JSON only.' : ''}
-${isDocker ? `4. Write clean, reliable Docker configurations.
-   - For Dockerfile: Use Node 18+ Alpine, set WORKDIR to /app, copy package.json, run npm install, copy source, expose the correct port (usually 3000 or 8080), and run the server.
-   - For docker-compose.yml: Expose the backend port (e.g., "3000:3000" or "8080:8080"). If MongoDB is used in the stack, add a 'mongo' service and pass MONGO_URI to the backend.` : ''}
+${isJson ? (isBoilerplate
+            ? '4. Return valid JSON only. If package.json, include standard production/dev scripts (start, dev, lint, build).'
+            : '4. Return valid JSON only.') : ''}
+${isDocker ? `4. Write clean, reliable, production-ready Docker configurations.
+   - For Dockerfile: Use multi-stage builds if appropriate. Set WORKDIR, copy dependencies, run install, copy source, and expose the correct port.
+   - For docker-compose.yml: Include the backend framework service and any databases listed in the stack (e.g., postgres, redis, mongo). Map ports correctly and pass necessary ENV variables.` : ''}
 ${isServerConfig ? `4. Write robust server configuration.
-   - For server.js: Ensure it serves index.html statically using express.static if it exists. Example: \`app.use(express.static(__dirname)); app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));\`
-   - For package.json: Ensure "scripts": {"start": "node server.js"} is present.` : ''}
-${!isHtml && !isJson && !isDocker && !isServerConfig ? '4. Write clean, well-commented code with proper error handling.' : ''}`;
+   - If server entry point (e.g., index.js, src/server.js): Setup standard middleware (cors, helmet, express.json), connect to databases if required, and mount routes cleanly. DO NOT put all logic in one file if the path suggests a modular structure.` : ''}
+${!isHtml && !isJson && !isDocker && !isServerConfig ? (isBoilerplate
+            ? '4. Write clean, modular, well-commented code following SOLID principles. If it is a route, controller, or model file, provide a standard CRUD scaffold that is ready to be expanded.'
+            : '4. Write clean, well-commented code with proper error handling.') : ''}`;
 
     const userMessage = `Generate the file: "${fileName}"
 Purpose: ${filePurpose}
