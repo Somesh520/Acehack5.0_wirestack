@@ -19,31 +19,59 @@ import {
     PaintBucket,
     HardDrive,
     Network,
-    Container
+    Container,
+    Zap,
+    FileJson,
+    Flame,
+    CreditCard,
+    Lock,
+    Radio,
+    Cloud,
+    Workflow,
+    Triangle,
+    Braces
 } from 'lucide-react';
 import AIChatPanel from './AIChatPanel';
 
 const nodeTypes = [
-    // Frontend
+    // ── Frontend ──
     { id: 'nextjs', label: 'Next.js', icon: <Layout className="w-6 h-6" />, color: 'bg-[#ffffff]', textColor: 'text-black', description: 'React framework for production' },
     { id: 'react', label: 'React', icon: <Globe className="w-6 h-6" />, color: 'bg-[#00d8ff]', textColor: 'text-black', description: 'UI/UX interface library' },
     { id: 'vue', label: 'Vue.js', icon: <FileCode2 className="w-6 h-6" />, color: 'bg-[#42b883]', textColor: 'text-white', description: 'Progressive JS framework' },
+    { id: 'angular', label: 'Angular', icon: <Triangle className="w-6 h-6" />, color: 'bg-[#dd0031]', textColor: 'text-white', description: 'Enterprise web framework' },
 
-    // Styling
+    // ── Styling & Language ──
     { id: 'tailwindcss', label: 'Tailwind CSS', icon: <PaintBucket className="w-6 h-6" />, color: 'bg-[#38bdf8]', textColor: 'text-white', description: 'Utility-first CSS framework' },
+    { id: 'typescript', label: 'TypeScript', icon: <Braces className="w-6 h-6" />, color: 'bg-[#3178c6]', textColor: 'text-white', description: 'Typed JavaScript superset' },
 
-    // Backend
+    // ── Backend ──
     { id: 'express', label: 'Express.js', icon: <Server className="w-6 h-6" />, color: 'bg-[#eeeeee]', textColor: 'text-black', description: 'Node.js backend framework' },
     { id: 'django', label: 'Django', icon: <Code2 className="w-6 h-6" />, color: 'bg-[#092e20]', textColor: 'text-white', description: 'Python web framework' },
+    { id: 'flask', label: 'Flask', icon: <Flame className="w-6 h-6" />, color: 'bg-[#000000]', textColor: 'text-white', description: 'Lightweight Python framework' },
+    { id: 'fastapi', label: 'FastAPI', icon: <Zap className="w-6 h-6" />, color: 'bg-[#009688]', textColor: 'text-white', description: 'High-performance Python API' },
+    { id: 'springboot', label: 'Spring Boot', icon: <Cpu className="w-6 h-6" />, color: 'bg-[#6db33f]', textColor: 'text-white', description: 'Java/Kotlin backend' },
 
-    // Database
+    // ── Database ──
     { id: 'postgres', label: 'PostgreSQL', icon: <HardDrive className="w-6 h-6" />, color: 'bg-[#336791]', textColor: 'text-white', description: 'Relational database' },
     { id: 'mongodb', label: 'MongoDB', icon: <Database className="w-6 h-6" />, color: 'bg-[#47a248]', textColor: 'text-white', description: 'NoSQL document database' },
+    { id: 'mysql', label: 'MySQL', icon: <Database className="w-6 h-6" />, color: 'bg-[#00758f]', textColor: 'text-white', description: 'Popular SQL database' },
     { id: 'redis', label: 'Redis', icon: <Network className="w-6 h-6" />, color: 'bg-[#d82c20]', textColor: 'text-white', description: 'In-memory data store' },
+    { id: 'firebase', label: 'Firebase', icon: <Flame className="w-6 h-6" />, color: 'bg-[#ffca28]', textColor: 'text-black', description: 'Google BaaS platform' },
+    { id: 'supabase', label: 'Supabase', icon: <Cloud className="w-6 h-6" />, color: 'bg-[#3ecf8e]', textColor: 'text-white', description: 'Open-source Firebase alt' },
 
-    // Infrastructure / Tools
-    { id: 'docker', label: 'Docker', icon: <Container className="w-6 h-6" />, color: 'bg-[#2496ed]', textColor: 'text-white', description: 'Containerization platform' },
+    // ── API & ORM ──
+    { id: 'graphql', label: 'GraphQL', icon: <Workflow className="w-6 h-6" />, color: 'bg-[#e535ab]', textColor: 'text-white', description: 'Query language for APIs' },
+    { id: 'prisma', label: 'Prisma', icon: <FileJson className="w-6 h-6" />, color: 'bg-[#2d3748]', textColor: 'text-white', description: 'Next-gen Node.js ORM' },
+
+    // ── Payments & Auth ──
+    { id: 'stripe', label: 'Stripe', icon: <CreditCard className="w-6 h-6" />, color: 'bg-[#635bff]', textColor: 'text-white', description: 'Payment processing' },
+    { id: 'jwt', label: 'JWT Auth', icon: <Lock className="w-6 h-6" />, color: 'bg-[#000000]', textColor: 'text-[#d63aff]', description: 'Token-based authentication' },
     { id: 'auth', label: 'Google Auth', icon: <ShieldCheck className="w-6 h-6" />, color: 'bg-[#ea4335]', textColor: 'text-white', description: 'Google OAuth integration' },
+
+    // ── Infrastructure ──
+    { id: 'docker', label: 'Docker', icon: <Container className="w-6 h-6" />, color: 'bg-[#2496ed]', textColor: 'text-white', description: 'Containerization platform' },
+    { id: 'nginx', label: 'Nginx', icon: <Server className="w-6 h-6" />, color: 'bg-[#009639]', textColor: 'text-white', description: 'Reverse proxy & web server' },
+    { id: 'socketio', label: 'Socket.io', icon: <Radio className="w-6 h-6" />, color: 'bg-[#010101]', textColor: 'text-white', description: 'Real-time WebSockets' },
 ];
 
 const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, onSelectWorkspace, onSuggestComponents, compact = false }) => {
