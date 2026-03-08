@@ -291,6 +291,30 @@ const Workspace = () => {
         }
     };
 
+    const handleToggleUserType = async () => {
+        const nextType = user?.user_type === 'developer' ? 'non-developer' : 'developer';
+        if (!window.confirm(`Are you sure you want to change role from ${user?.user_type} to ${nextType}?`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/auth/update-type', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userType: nextType }),
+                credentials: 'include'
+            });
+
+            if (!res.ok) throw new Error('Failed to update role');
+
+            const data = await res.json();
+            setUser(data.user);
+        } catch (err) {
+            console.error('Role update error:', err);
+            alert('Failed to update role. Please try again.');
+        }
+    };
+
     const handleSuggestComponents = () => {
         // Kick off gamified pipeline
         setNodes(PIPELINE_NODES);
