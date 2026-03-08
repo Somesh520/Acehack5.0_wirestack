@@ -365,12 +365,25 @@ ${isHtml ? (isBoilerplate
       - Professional navigation bar (sticky top-0, flex justify-between items-center)
       - At least 300 lines of well-structured code
    
-   D) INTERACTIVITY & JAVASCRIPT RULES:
-      - ALL JavaScript MUST be enclosed inside proper <script> ... </script> tags placed just before the closing </body> tag.
-      - NEVER output raw JavaScript text directly into the HTML body.
+   D) INTERACTIVITY & STRICT JAVASCRIPT ISOLATION:
+      - FATAL ERROR PREVENTION: NEVER output raw JavaScript code directly into the HTML body. It will render as text and break the app.
+      - You MUST wrap ALL JavaScript logic securely inside a <script> tag placed at the very end of the file, just before </body>.
+      - Ensure your output perfectly matches this strict HTML5 structure:
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <!-- Meta, Tailwind CDN, Google Fonts, and Fallback <style> go here -->
+        </head>
+        <body class="bg-gray-900 text-white">
+          <!-- ONLY HTML Elements (Divs, Navs, Buttons) go here -->
+          
+          <script>
+            // ALL JavaScript logic (MockAPI, Event Listeners, State) MUST go EXACTLY here.
+          </script>
+        </body>
+        </html>
       - Implement modal dialogs that open/close accurately using DOM manipulation.
-      - Enable tab switching between different application views (e.g., Home vs. profile).
-      - Add dynamic counters (e.g., cart badges, notification count).
+      - Enable tab switching between different application views.
       - Ensure form submissions actually capture data and save it to the mock API store.
       - State management must use a simple but robust JavaScript store pattern within the <script> block.
    
