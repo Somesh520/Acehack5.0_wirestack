@@ -239,41 +239,45 @@ Each entry has "name" (filename WITH relative path, e.g., backend/src/routes/api
 RULES:
 1. Return ONLY a valid JSON array. No markdown, no text, no backticks.
 2. Include 12-18 foundational files. We want a REAL developer structure, not a toy app.
-3. CRITICAL ARCHITECTURE RULE: You MUST separate the codebase into "frontend/" and "backend/" directories if the stack contains both UI (React/Vue/Next) and Server (Express/Django) technologies.
-4. Each directory (frontend and backend) MUST have its own "package.json" or equivalent dependency file.
-5. Provide a ROOT "docker-compose.yml" that orchestrates the frontend, backend, and any databases.
-6. Provide a ROOT "README.md" explaining the architecture and how to run everything.
-7. CREATE REAL FOLDER STRUCTURES inside backend and frontend. Example paths:
-   - frontend/package.json
-   - frontend/src/App.jsx
-   - frontend/src/components/Header.jsx
-   - backend/package.json
-   - backend/src/index.js
-   - backend/src/config/db.js
-   - backend/src/routes/api.js
-   - backend/src/controllers/userController.js
-   - backend/src/models/User.js
-   - docker-compose.yml
-   - README.md
-8. DO NOT invent complex business logic. Just provide clean, empty scaffolding and standard imports.
+3. CRITICAL ARCHITECTURE RULE: You MUST separate the codebase into "frontend/" and "backend/" directories if the stack contains both UI and Server technologies.
+4. DEPENDENCY FILES MUST MATCH THE STACK:
+   - For Node.js/React: Use "package.json".
+   - For Python: Use "requirements.txt" or "Pipfile".
+   - For Go: Use "go.mod".
+   - For Java: Use "pom.xml" or "build.gradle".
+   - For Rust: Use "Cargo.toml".
+5. FILE EXTENSIONS MUST MATCH THE STACK:
+   - NEVER use .js for the backend if the user requested Python (.py), Go (.go), Java (.java), Rust (.rs), Ruby (.rb), etc.
+   - Frontend files should be .jsx, .tsx, .vue, .html depending on the UI stack chosen.
+6. Provide a ROOT "docker-compose.yml" that orchestrates the frontend, backend, and any databases.
+7. Provide a ROOT "README.md" explaining the architecture and how to run everything.
+8. CREATE REAL FOLDER STRUCTURES inside backend and frontend (e.g., controllers, models, routes).
+9. DO NOT invent complex business logic. Just provide clean, empty scaffolding and standard imports.
 
-Example output:
-[{"name":"frontend/package.json","purpose":"UI dependencies"},{"name":"frontend/src/App.jsx","purpose":"Main UI component"},{"name":"backend/package.json","purpose":"Server dependencies"},{"name":"backend/src/index.js","purpose":"Basic API entry point"},{"name":"backend/src/config/db.js","purpose":"Database connection setup"},{"name":"backend/src/routes/api.js","purpose":"API routes definition"},{"name":"docker-compose.yml","purpose":"Docker Compose config orchestrating both"},{"name":"README.md","purpose":"Instructions to run"}]`
+Example output (adapt this to the ACTUAL tech stack requested):
+[{"name":"frontend/package.json","purpose":"UI dependencies"},{"name":"frontend/src/App.jsx","purpose":"Main UI component"},{"name":"backend/requirements.txt","purpose":"Server dependencies (if Python)"},{"name":"backend/src/main.py","purpose":"API entry point (if Python)"},{"name":"docker-compose.yml","purpose":"Docker orchestration"},{"name":"README.md","purpose":"Instructions"}]`
 
         : `You are a senior software architect. Given a project idea and tech stack, return ONLY a JSON array of files needed to build the project. Each entry has "name" (filename) and "purpose" (1-line description).
 
 RULES:
 1. Return ONLY a valid JSON array. No markdown, no text, no backticks.
 2. Include 6-10 files maximum.
-3. ALWAYS include "package.json" as the FIRST file.
+3. DEPENDENCY FILES MUST MATCH THE STACK:
+   - For Node.js: Use "package.json".
+   - For Python: Use "requirements.txt".
+   - For Go: Use "go.mod".
+   - For Java: Use "pom.xml".
+   - For Rust: Use "Cargo.toml".
 4. ALWAYS include "Dockerfile" and "docker-compose.yml" so the project can be run instantly via Docker.
 5. ALWAYS include "README.md" explaining how to start the app using \`docker-compose up\`.
 6. ALWAYS include "index.html" as the LAST file — this is a beautiful Tailwind CSS frontend preview.
-7. Include files relevant to the chosen stack (e.g., server.js for Express, db.js for MongoDB).
+7. FILE EXTENSIONS MUST MATCH THE STACK:
+   - NEVER use .js for the backend if the user requested Python (.py), Go (.go), Java (.java), Rust (.rs), etc.
+   - Example context: If Python is requested, provide "main.py" not "server.js".
 8. File names should be flat (no folders), just filenames.
 
-Example output:
-[{"name":"package.json","purpose":"Project dependencies and scripts"},{"name":"server.js","purpose":"Express API server with routes"},{"name":"Dockerfile","purpose":"Dockerize the Node.js application"},{"name":"docker-compose.yml","purpose":"Docker Compose config to run the app"},{"name":"README.md","purpose":"Instructions to run the app via Docker"},{"name":"index.html","purpose":"Beautiful Tailwind frontend preview"}]`;
+Example output (adapt to the ACTUAL tech stack requested):
+[{"name":"requirements.txt","purpose":"Project dependencies"},{"name":"main.py","purpose":"API server with routes"},{"name":"Dockerfile","purpose":"Dockerize the application"},{"name":"docker-compose.yml","purpose":"Docker Compose config to run the app"},{"name":"README.md","purpose":"Instructions to run the app via Docker"},{"name":"index.html","purpose":"Beautiful Tailwind frontend preview"}]`;
 
     try {
         const reply = await callLLM(systemPrompt, `Project idea: "${idea}"\nTech stack: ${stack}`);
