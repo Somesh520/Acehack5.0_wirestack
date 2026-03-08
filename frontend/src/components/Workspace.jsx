@@ -18,7 +18,7 @@ import { workflowNodeTypes } from './WorkflowNode';
 import DeveloperNode from './DeveloperNode';
 import GamifiedNode from './GamifiedNode';
 import { PIPELINE_NODES, PIPELINE_EDGES, PIPELINE_STEPS } from './pipelineConfig';
-import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut, BarChart3, FolderUp } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut, BarChart3, FolderUp, Github } from 'lucide-react';
 
 const initialNodes = [];
 const initialEdges = [];
@@ -41,6 +41,8 @@ const Workspace = () => {
     const [showAnalysis, setShowAnalysis] = useState(false);
     const [uploadedFolderName, setUploadedFolderName] = useState(null);
     const folderInputRef = useRef(null);
+    const [showRepoInput, setShowRepoInput] = useState(false);
+    const [repoUrl, setRepoUrl] = useState('');
 
     // Lifted chat state
     const [chatHistory, setChatHistory] = useState([
@@ -252,6 +254,39 @@ const Workspace = () => {
         } finally {
             setIsAnalyzing(false);
             if (folderInputRef.current) folderInputRef.current.value = '';
+        }
+    };
+
+    const handleAnalyzeRepo = async () => {
+        if (!repoUrl.trim()) return;
+
+        const repoName = repoUrl.trim().replace(/\/$/, '').split('/').pop() || 'GitHub Repo';
+        setUploadedFolderName(repoName);
+
+        setIsAnalyzing(true);
+        setShowAnalysis(true);
+        setShowRepoInput(false);
+        setAnalysisData(null);
+
+        try {
+            const res = await fetch('/api/ai/analyze-repo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ repoUrl: repoUrl.trim() }),
+                credentials: 'include'
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.details || 'Repo analysis failed');
+            }
+            const data = await res.json();
+            setAnalysisData(data);
+        } catch (err) {
+            console.error('Repo analysis error:', err);
+            setAnalysisData({ summary: `Repo analysis failed: ${err.message}`, cost: null, security: null, scalability: null, architecture: null });
+        } finally {
+            setIsAnalyzing(false);
         }
     };
 
@@ -862,23 +897,39 @@ const Workspace = () => {
                         ANALYZE
                     </button>
                     <button
-                        onClick={() => { setUploadedFolderName(null); folderInputRef.current?.click(); }}
+                        onClick={() => setShowRepoInput(!showRepoInput)}
                         disabled={isAnalyzing}
                         className="flex items-center gap-2 px-4 py-1.5 border-3 border-black bg-[#FF8C00] text-white font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
                     >
-                        <FolderUp size={16} />
-                        UPLOAD PROJECT
+                        <Github size={16} />
+                        GITHUB REPO
                     </button>
-                    {/* Hidden folder input */}
-                    <input
-                        ref={folderInputRef}
-                        type="file"
-                        webkitdirectory="true"
-                        directory="true"
-                        multiple
-                        className="hidden"
-                        onChange={handleFolderUpload}
-                    />
+
+                    {/* GitHub Repo URL Input Dropdown */}
+                    {showRepoInput && (
+                        <div className="absolute right-[200px] top-[52px] z-50 bg-white border-3 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-3 w-[400px]">
+                            <p className="font-black text-xs uppercase mb-2">🔗 Enter GitHub Repo URL</p>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={repoUrl}
+                                    onChange={(e) => setRepoUrl(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAnalyzeRepo()}
+                                    placeholder="https://github.com/owner/repo"
+                                    className="flex-1 px-3 py-1.5 border-2 border-black font-bold text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]"
+                                    autoFocus
+                                />
+                                <button
+                                    onClick={handleAnalyzeRepo}
+                                    disabled={!repoUrl.trim()}
+                                    className="px-3 py-1.5 bg-[#FF8C00] text-white border-2 border-black font-black text-sm hover:bg-[#e67e00] transition-colors disabled:opacity-50"
+                                >
+                                    ANALYZE
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-gray-400 font-bold mt-1">Public repos only. e.g. https://github.com/facebook/react</p>
+                        </div>
+                    )}
 
                     {/* User Avatar + Logout */}
                     {user && (

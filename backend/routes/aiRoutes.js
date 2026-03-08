@@ -596,4 +596,206 @@ ${importantFiles.map(f => `\n--- ${f.name} ---\n${f.content}`).join('\n')}`;
     }
 });
 
+// ============================================================
+// GITHUB REPO ANALYSIS: Analyze via GitHub API (handles huge repos)
+// ============================================================
+router.post('/analyze-repo', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { repoUrl } = req.body;
+    if (!repoUrl) {
+        return res.status(400).json({ error: 'repoUrl is required' });
+    }
+
+    // Parse GitHub URL → owner/repo
+    // Supports: https://github.com/owner/repo, github.com/owner/repo, owner/repo
+    let owner, repo;
+    try {
+        const cleaned = repoUrl.replace(/\.git$/, '').replace(/\/$/, '');
+        const match = cleaned.match(/(?:github\.com\/)?([^\/]+)\/([^\/]+)$/);
+        if (!match) throw new Error('Invalid format');
+        owner = match[1];
+        repo = match[2];
+    } catch (e) {
+        return res.status(400).json({ error: 'Invalid GitHub URL. Use format: https://github.com/owner/repo' });
+    }
+
+    try {
+        console.log(`🔍 Analyzing GitHub repo: ${owner}/${repo}`);
+
+        // 1. Fetch repo file tree recursively
+        const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`, {
+            headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'WireStack-Analyzer' }
+        });
+
+        if (!treeRes.ok) {
+            const errData = await treeRes.json().catch(() => ({}));
+            throw new Error(errData.message || `GitHub API error: ${treeRes.status}`);
+        }
+
+        const treeData = await treeRes.json();
+        const allFiles = (treeData.tree || []).filter(f => f.type === 'blob');
+        const allPaths = allFiles.map(f => f.path);
+
+        // 2. Smart file selection — prioritize config and key source files
+        const highPriority = [
+            /^package\.json$/i, /^requirements\.txt$/i, /^Pipfile$/i, /^go\.mod$/i, /^pom\.xml$/i,
+            /^Dockerfile/i, /docker-compose/i, /^\.env\.example$/i, /^Procfile$/i,
+            /^tsconfig/i, /next\.config/i, /vite\.config/i, /webpack\.config/i,
+            /^README\.md$/i, /prisma\/schema/i,
+            /^server\.(js|ts)$/i, /^app\.(js|ts|py)$/i, /^index\.(js|ts|jsx|tsx)$/i, /^main\.(js|ts|py|go)$/i,
+            /^src\/app/i, /^src\/index/i, /^src\/main/i,
+        ];
+
+        const medPriority = [
+            /routes?\//i, /middleware/i, /config\//i, /\.yaml$/i, /\.yml$/i,
+            /models?\//i, /controllers?\//i, /services?\//i, /utils?\//i,
+        ];
+
+        // Skip patterns
+        const skipPatterns = [
+            /node_modules/i, /\.git\//i, /dist\//i, /build\//i, /\.next\//i,
+            /\.(png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|mp4|mp3|zip|lock)$/i,
+            /package-lock\.json$/i, /yarn\.lock$/i, /\.min\.(js|css)$/i,
+        ];
+
+        const filesToFetch = [];
+        const skippedPaths = allPaths.filter(p => !skipPatterns.some(s => s.test(p)));
+
+        // High priority first
+        for (const path of skippedPaths) {
+            if (filesToFetch.length >= 15) break;
+            if (highPriority.some(p => p.test(path))) {
+                filesToFetch.push(path);
+            }
+        }
+
+        // Medium priority
+        for (const path of skippedPaths) {
+            if (filesToFetch.length >= 20) break;
+            if (filesToFetch.includes(path)) continue;
+            if (medPriority.some(p => p.test(path))) {
+                filesToFetch.push(path);
+            }
+        }
+
+        // Fill remaining with source files
+        const sourceExts = [/\.(js|ts|jsx|tsx|py|go|rs|java|rb)$/i];
+        for (const path of skippedPaths) {
+            if (filesToFetch.length >= 25) break;
+            if (filesToFetch.includes(path)) continue;
+            if (sourceExts.some(p => p.test(path))) {
+                filesToFetch.push(path);
+            }
+        }
+
+        // 3. Fetch file contents from GitHub (in parallel, max 25 files)
+        const fileContents = await Promise.all(
+            filesToFetch.map(async (path) => {
+                try {
+                    const fileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+                        headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'WireStack-Analyzer' }
+                    });
+                    if (!fileRes.ok) return { name: path, content: '[Could not fetch]' };
+                    const fileData = await fileRes.json();
+
+                    // GitHub returns base64 encoded content
+                    if (fileData.content && fileData.encoding === 'base64') {
+                        const decoded = Buffer.from(fileData.content, 'base64').toString('utf-8');
+                        // Truncate to 200 lines to stay within token limits
+                        const truncated = decoded.split('\n').slice(0, 200).join('\n');
+                        return { name: path, content: truncated };
+                    }
+                    return { name: path, content: '[Binary or empty file]' };
+                } catch {
+                    return { name: path, content: '[Fetch error]' };
+                }
+            })
+        );
+
+        console.log(`📂 Fetched ${fileContents.length} files from ${owner}/${repo} (total ${allPaths.length} in repo)`);
+
+        // 4. Build the tree summary
+        const treeStr = skippedPaths.slice(0, 80).join('\n');
+
+        const systemPrompt = `You are a senior cloud architect, security expert, and DevOps consultant analyzing a GitHub repository.
+
+Analyze the project structure and source code. Be SPECIFIC — reference actual file names and patterns.
+
+Return ONLY a valid JSON object (no markdown, no backticks):
+{
+  "summary": "2-3 sentence overview of what this project is",
+  "detected_stack": ["tech1", "tech2", "tech3"],
+  "cost": {
+    "monthly_estimate": "$XX - $XX/month",
+    "breakdown": [
+      { "service": "name", "provider": "AWS/GCP/Vercel/Railway/etc", "cost": "$X/mo", "note": "why" }
+    ],
+    "free_tier_possible": true/false,
+    "annual_estimate": "$XXX - $XXX/year",
+    "tip": "biggest cost saving tip"
+  },
+  "security": {
+    "score": "A/B/C/D",
+    "strengths": ["specific good things"],
+    "vulnerabilities": ["specific issues found in code"],
+    "critical_fixes": ["must-fix now"],
+    "recommendations": ["nice-to-have"]
+  },
+  "scalability": {
+    "score": "A/B/C/D",
+    "max_concurrent_users": "range like 1K-5K",
+    "bottlenecks": ["specific bottlenecks"],
+    "improvements": ["what to add"]
+  },
+  "architecture": {
+    "pattern": "monolith/microservices/serverless/etc",
+    "strengths": ["good decisions"],
+    "weaknesses": ["problems"],
+    "missing_components": ["what to add"],
+    "production_checklist": ["step1", "step2", "step3", "step4", "step5"]
+  },
+  "code_quality": {
+    "score": "A/B/C/D",
+    "issues": ["specific code issues"],
+    "suggestions": ["improvements"]
+  }
+}
+
+Use real cloud provider pricing (India region). Be honest about vulns.`;
+
+        const userPrompt = `GitHub Repo: https://github.com/${owner}/${repo}
+
+FILE TREE (${allPaths.length} total files, showing ${skippedPaths.slice(0, 80).length}):
+${treeStr}
+
+KEY FILES (${fileContents.length} analyzed):
+${fileContents.map(f => `\n--- ${f.name} ---\n${f.content}`).join('\n')}`;
+
+        const raw = await callLLM(systemPrompt, userPrompt, 4000);
+
+        let analysis;
+        try {
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            analysis = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+        } catch (parseErr) {
+            console.warn('⚠️ Repo analysis JSON parse failed');
+            analysis = { summary: raw, cost: null, security: null, scalability: null, architecture: null, code_quality: null };
+        }
+
+        // Add repo info
+        analysis.repo_url = `https://github.com/${owner}/${repo}`;
+        analysis.files_analyzed = fileContents.length;
+        analysis.total_files = allPaths.length;
+
+        res.json(analysis);
+    } catch (err) {
+        console.error('❌ Repo analysis error:', err.message);
+        res.status(500).json({ error: 'Repo analysis failed', details: err.message });
+    }
+});
+
 module.exports = router;
+
