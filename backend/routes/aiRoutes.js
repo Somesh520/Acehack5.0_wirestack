@@ -87,10 +87,10 @@ router.post('/chat', async (req, res) => {
 
     const modelsToTry = [
         { provider: 'groq', modelId: 'llama-3.3-70b-versatile', engineName: 'Groq (Llama 3.3 70B)' },
-        { provider: 'groq', modelId: 'mixtral-8x7b-32768', engineName: 'Groq (Mixtral 8x7B)' }, // Groq fallback
-        { provider: 'gemini', modelId: 'gemini-2.0-flash', engineName: 'Gemini (2.0 Flash)' }, // Gemini primary
-        { provider: 'gemini', modelId: 'gemini-1.5-flash', engineName: 'Gemini (1.5 Flash)' }, // Gemini fallback
-        { provider: 'gemini', modelId: 'gemini-1.5-pro', engineName: 'Gemini (1.5 Pro)' }      // Gemini ultimate fallback
+        { provider: 'groq', modelId: 'llama-3.1-8b-instant', engineName: 'Groq (Llama 3.1 8B)' }, // Valid Groq fallback
+        { provider: 'gemini', modelId: 'gemini-2.5-flash', engineName: 'Gemini (2.5 Flash)' }, // Very Latest Gemini
+        { provider: 'gemini', modelId: 'gemini-1.5-flash-latest', engineName: 'Gemini (1.5 Flash)' }, // Valid API name
+        { provider: 'gemini', modelId: 'gemini-1.5-pro-latest', engineName: 'Gemini (1.5 Pro)' }      // Valid API name
     ];
 
     let lastError = null;
@@ -163,10 +163,10 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2, preferredModel = null) {
     const modelsToTry = [
         { provider: 'groq', modelId: 'llama-3.3-70b-versatile', engineName: 'Groq (Llama 3.3 70B)' },
-        { provider: 'groq', modelId: 'mixtral-8x7b-32768', engineName: 'Groq (Mixtral 8x7B)' },
-        { provider: 'gemini', modelId: 'gemini-2.0-flash', engineName: 'Gemini (2.0 Flash)' },
-        { provider: 'gemini', modelId: 'gemini-1.5-flash', engineName: 'Gemini (1.5 Flash)' },
-        { provider: 'groq', modelId: 'llama-3.1-8b-instant', engineName: 'Groq (Llama 3.1 8B)' }
+        { provider: 'groq', modelId: 'llama-3.1-8b-instant', engineName: 'Groq (Llama 3.1 8B)' },
+        { provider: 'gemini', modelId: 'gemini-2.5-flash', engineName: 'Gemini (2.5 Flash)' },
+        { provider: 'gemini', modelId: 'gemini-1.5-flash-latest', engineName: 'Gemini (1.5 Flash)' },
+        { provider: 'gemini', modelId: 'gemini-1.5-pro-latest', engineName: 'Gemini (1.5 Pro)' }
     ];
 
     let lastError = null;
