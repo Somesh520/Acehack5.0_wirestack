@@ -332,8 +332,13 @@ ${isHtml ? (isBoilerplate
    
    CRITICAL STYLING RULES (DO NOT IGNORE):
    - You MUST include EXACTLY this line inside the <head> tag: <script src="https://cdn.tailwindcss.com"></script>
-   - You MUST ALSO include a fallback <style> block in the <head> with basic modern resets, a default sans-serif font, and basic layout structure (flexbox/grid) just in case the CDN fails or loads slowly.
-   - The UI MUST look professional, premium, and fully responsive (mobile, tablet, desktop).
+   - AESTHETICS ARE CRITICAL: Design a stunning, ultra-modern UI. It MUST NOT look like a basic tutorial app.
+   - Use a sleek dark mode or vibrant, harmonious color palettes (avoid generic colors).
+   - Implement "Glassmorphism" (backdrop-blur, semi-transparent backgrounds with subtle white/colored borders).
+   - Add dynamic glowing gradients, soft shadows (shadow-2xl), and rounded corners (rounded-2xl or rounded-3xl).
+   - Use modern typography (e.g., import Google Fonts like 'Inter' or 'Outfit') instead of browser defaults.
+   - Add micro-animations (hover:scale-105, hover:translate-y-1, transition-all duration-300).
+   - Ensure the layout is 100% responsive using CSS Grid/Flexbox for mobile, tablet, and desktop views.
    
    THIS MUST BE A WORKING APP, NOT JUST A LANDING PAGE. Include ALL of these:
    
