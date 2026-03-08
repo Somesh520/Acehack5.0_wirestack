@@ -76,11 +76,25 @@ const EditorPanel = ({ files, generationStatus }) => {
     const handleDownloadZip = async () => {
         if (!normalized || !normalized.children) return;
         setIsDownloading(true);
+
+        // Strip the React elements (icons) before stringifying for the backend
+        const cleanFilesForUpload = (nodes) => {
+            return nodes.map(node => {
+                const { icon, ...cleanNode } = node;
+                if (cleanNode.children) {
+                    cleanNode.children = cleanFilesForUpload(cleanNode.children);
+                }
+                return cleanNode;
+            });
+        };
+
+        const safeFiles = cleanFilesForUpload(normalized.children);
+
         try {
             const response = await fetch('/api/ai/download', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ files: normalized.children }),
+                body: JSON.stringify({ files: safeFiles }),
                 credentials: 'include'
             });
 
