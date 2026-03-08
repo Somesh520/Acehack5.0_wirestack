@@ -36,8 +36,8 @@ const GamifiedNode = ({ data }) => {
             )}
 
             {isCompleted && (
-                <div className="mb-2 bg-black text-[#33FF66] text-[8px] font-black px-2 py-0.5 uppercase tracking-widest border border-[#33FF66]">
-                    ✅ UNLOCKED
+                <div className={`mb-2 bg-black text-[8px] font-black px-2 py-0.5 uppercase tracking-widest border ${bestPractice?.id === selectedOption ? 'text-[#FFD700] border-[#FFD700]' : 'text-[#33FF66] border-[#33FF66]'}`}>
+                    {bestPractice?.id === selectedOption ? '⭐ BEST PRACTICE' : '⚡ ALTERNATIVE'}
                 </div>
             )}
 
