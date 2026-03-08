@@ -42,23 +42,7 @@ const LandingPage = () => {
                 </a>
             </main>
 
-            {/* Social Proof (Brutalist Marquee Style) */}
-            <section className="w-full border-y-[4px] border-black bg-white overflow-hidden py-4 flex items-center max-w-[100vw] text-xl md:text-3xl font-black uppercase tracking-widest relative">
-                <div className="flex gap-12 whitespace-nowrap animate-[marquee_20s_linear_infinite] px-4">
-                    <span>TRUSTED BY ACME CORP</span> <span>•</span>
-                    <span>POWERING GLOBEX INC</span> <span>•</span>
-                    <span>SOYUZ SYSTEMS</span> <span>•</span>
-                    <span>WAYNE ENTERPRISES</span> <span>•</span>
-                    <span>STARK INDUSTRIES</span> <span>•</span>
-                    <span>TRUSTED BY ACME CORP</span> <span>•</span>
-                    <span>POWERING GLOBEX INC</span>
-                </div>
-                {/* Add CSS for marquee animation manually because standard tailwind doesn't have it by default */}
-                <style dangerouslySetInnerHTML={{
-                    __html: `
-            @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-          `}} />
-            </section>
+
 
             {/* Features Bento Grid (Brutalist Edition) */}
             <section id="features" className="w-full py-24 px-6 max-w-7xl mx-auto">
