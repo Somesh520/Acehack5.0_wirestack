@@ -12,9 +12,9 @@ import '@xyflow/react/dist/style.css';
 import Sidebar from './Sidebar';
 import AIChatPanel from './AIChatPanel';
 import EditorPanel from './EditorPanel';
-import GamifiedNode from './GamifiedNode';
 import NodeOptionsPanel from './NodeOptionsPanel';
 import { workflowNodeTypes } from './WorkflowNode';
+import DeveloperNode from './DeveloperNode';
 import { PIPELINE_NODES, PIPELINE_EDGES, PIPELINE_STEPS } from './pipelineConfig';
 import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play } from 'lucide-react';
 
@@ -341,11 +341,14 @@ const Workspace = () => {
             }
 
             const position = { x: event.clientX - 300, y: event.clientY - 50 };
+
+            // For developer flow, type is something like 'nextjs', 'react', etc.
+            // We append the unqiue ID logic to 'id', but keep type as-is so ReactFlow maps it to developerNodeTypes
             const newNode = {
-                id: `${type} -${nodes.length + 1} `,
-                type,
+                id: `${type}-${nodes.length + 1}`,
+                type: type,
                 position,
-                data: { label: `${type} node` },
+                data: { label: type.toUpperCase() },
             };
 
             setNodes((nds) => nds.concat(newNode));
@@ -565,6 +568,22 @@ const Workspace = () => {
     }
 
     // ===== DEVELOPER: Original Layout =====
+
+    // Create a nodeTypes object that maps EVERY possible dropped tech to the DeveloperNode component
+    const developerNodeTypes = {
+        nextjs: DeveloperNode,
+        react: DeveloperNode,
+        vue: DeveloperNode,
+        tailwindcss: DeveloperNode,
+        express: DeveloperNode,
+        django: DeveloperNode,
+        postgres: DeveloperNode,
+        mongodb: DeveloperNode,
+        redis: DeveloperNode,
+        docker: DeveloperNode,
+        auth: DeveloperNode,
+    };
+
     return (
         <div className="flex h-screen w-full bg-white font-mono overflow-hidden">
             {/* Sidebar */}
@@ -637,7 +656,7 @@ const Workspace = () => {
                             onConnect={onConnect}
                             onDrop={onDrop}
                             onDragOver={onDragOver}
-                            nodeTypes={workflowNodeTypes}
+                            nodeTypes={developerNodeTypes}
                             fitView
                         >
                             <Background color="#000" variant="dots" gap={20} size={1} />
