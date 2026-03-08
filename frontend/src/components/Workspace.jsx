@@ -569,7 +569,6 @@ const Workspace = () => {
 
     // ===== DEVELOPER: Original Layout =====
 
-    // Create a nodeTypes object that maps EVERY possible dropped tech to the DeveloperNode component
     const developerNodeTypes = {
         nextjs: DeveloperNode,
         react: DeveloperNode,
@@ -582,6 +581,7 @@ const Workspace = () => {
         redis: DeveloperNode,
         docker: DeveloperNode,
         auth: DeveloperNode,
+        default: DeveloperNode,
     };
 
     return (
