@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles, Zap } from 'lucide-react';
 
-const AIChatPanel = ({ onSuggestSystemDesign, messages, setMessages }) => {
+const AIChatPanel = ({ onSuggestSystemDesign, messages = [], setMessages = () => { } }) => {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const chatEndRef = useRef(null);

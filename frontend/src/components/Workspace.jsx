@@ -1051,6 +1051,8 @@ const Workspace = () => {
                         onCreateWorkspace={handleCreateWorkspace}
                         onSelectWorkspace={handleSelectWorkspace}
                         onSuggestSystemDesign={handleSuggestSystemDesign}
+                        messages={chatHistory}
+                        setMessages={setChatHistory}
                         compact={true}
                     />
                 </div>

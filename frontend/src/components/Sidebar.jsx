@@ -74,7 +74,7 @@ const nodeTypes = [
     { id: 'socketio', label: 'Socket.io', icon: <Radio className="w-6 h-6" />, color: 'bg-[#010101]', textColor: 'text-white', description: 'Real-time WebSockets' },
 ];
 
-const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, onSelectWorkspace, onSuggestSystemDesign, compact = false }) => {
+const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, onSelectWorkspace, onSuggestSystemDesign, messages, setMessages, compact = false }) => {
     const isNoCode = user?.user_type === 'non-developer';
     const [activeTab, setActiveTab] = useState('workspaces'); // 'workspaces' | 'chat'
 
@@ -265,7 +265,11 @@ const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, on
                         </div>
                     </div>
                 ) : (
-                    <AIChatPanel onSuggestSystemDesign={onSuggestSystemDesign} />
+                    <AIChatPanel
+                        onSuggestSystemDesign={onSuggestSystemDesign}
+                        messages={messages}
+                        setMessages={setMessages}
+                    />
                 )}
             </div>
         </aside>
