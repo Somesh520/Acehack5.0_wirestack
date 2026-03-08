@@ -3,13 +3,32 @@ import { X, CheckCircle2, ChevronRight, Lock } from 'lucide-react';
 import { PIPELINE_STEPS } from './pipelineConfig';
 
 const NodeOptionsPanel = ({ node, onSelectOption, onClose }) => {
-    const { stepId, status, selectedOption: currentSelection } = node.data;
-    const step = PIPELINE_STEPS.find(s => s.id === stepId);
+    const { stepId, status, selectedOption: currentSelection, bestPractice, alternatives, title: nodeTitle } = node.data;
+
+    // Use dynamic data from AI if available, otherwise fallback to static pipeline
+    const step = PIPELINE_STEPS.find(s => s.id === stepId) || {
+        id: stepId,
+        title: nodeTitle || stepId,
+        subtitle: 'Choice based on your idea',
+        color: '#FFD700',
+        options: [
+            ...(bestPractice ? [{ ...bestPractice, isBest: true }] : []),
+            ...(alternatives || [])
+        ]
+    };
+
+    // If options are raw from AI (best_practice + alternatives), combine them
+    const allOptions = (bestPractice || alternatives)
+        ? [
+            ...(bestPractice ? [{ ...bestPractice, isBest: true }] : []),
+            ...(alternatives || [])
+        ]
+        : step.options;
 
     // Local state for previewing selection before confirming
     const [selectedId, setSelectedId] = useState(currentSelection || null);
 
-    if (!step) return null;
+    if (!allOptions || allOptions.length === 0) return null;
 
     if (status === 'locked') {
         return (
@@ -35,15 +54,15 @@ const NodeOptionsPanel = ({ node, onSelectOption, onClose }) => {
                 {/* Header */}
                 <div
                     className="p-5 border-b-4 border-black flex items-center justify-between shrink-0"
-                    style={{ backgroundColor: step.color }}
+                    style={{ backgroundColor: step.color || '#FFD700' }}
                 >
                     <div>
                         <div className="flex items-center gap-2 mb-1">
-                            {step.icon}
+                            {step.icon || <Sparkles size={24} />}
                             <h2 className="text-2xl font-black uppercase tracking-tight">{step.title}</h2>
                         </div>
-                        <p className="text-xs font-bold bg-black text-white px-2 py-0.5 inline-block uppercase">
-                            Mission: {step.subtitle}
+                        <p className="text-[10px] font-black bg-black text-white px-2 py-0.5 inline-block uppercase tracking-widest">
+                            {status === 'completed' ? '✓ MISSION COMPLETE' : '▶ NEW CHALLENGE'}
                         </p>
                     </div>
                     <button
@@ -56,23 +75,34 @@ const NodeOptionsPanel = ({ node, onSelectOption, onClose }) => {
 
                 {/* Options List */}
                 <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-                    <h3 className="font-black uppercase mb-4 text-gray-400 text-sm tracking-widest">Available Tech Stacks</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                        {step.options.map(opt => (
+                    <h3 className="font-black uppercase mb-4 text-gray-400 text-[10px] tracking-[0.2em]">Compare & Choose</h3>
+                    <div className="flex flex-col gap-4">
+                        {allOptions.map(opt => (
                             <div
                                 key={opt.id}
                                 onClick={() => setSelectedId(opt.id)}
-                                className={`cursor-pointer border-3 border-black p-4 transition-all ${selectedId === opt.id
-                                        ? 'bg-[#FFD700] shadow-none translate-x-1 translate-y-1'
-                                        : 'bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1'
+                                className={`cursor-pointer border-4 border-black p-5 transition-all relative ${selectedId === opt.id
+                                    ? 'bg-[#FFD700] shadow-none translate-x-1 translate-y-1'
+                                    : 'bg-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1'
                                     }`}
                             >
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="text-3xl">{opt.logo}</span>
+                                {opt.isBest && (
+                                    <div className="absolute -top-3 right-4 bg-[#33FF66] border-2 border-black px-2 py-0.5 text-[8px] font-black uppercase tracking-widest shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                        ⭐ Industry Standard
+                                    </div>
+                                )}
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-4xl">{opt.logo || '📦'}</span>
+                                        <h4 className="font-black text-xl uppercase tracking-tighter">{opt.name}</h4>
+                                    </div>
                                     {selectedId === opt.id && <CheckCircle2 size={24} className="text-black" />}
                                 </div>
-                                <h4 className="font-black text-lg uppercase leading-none mb-1">{opt.name}</h4>
-                                <p className="text-xs font-bold text-gray-600 leading-tight">{opt.desc}</p>
+                                <div className="pl-14">
+                                    <p className="text-xs font-bold text-gray-700 leading-relaxed bg-black/5 p-3 border-l-4 border-black">
+                                        {opt.reason || opt.desc}
+                                    </p>
+                                </div>
                             </div>
                         ))}
                     </div>

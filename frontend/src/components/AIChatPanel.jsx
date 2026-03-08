@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles, Zap } from 'lucide-react';
 
-const AIChatPanel = ({ onSuggestComponents, messages, setMessages }) => {
+const AIChatPanel = ({ onSuggestSystemDesign, messages, setMessages }) => {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const chatEndRef = useRef(null);
@@ -10,8 +10,8 @@ const AIChatPanel = ({ onSuggestComponents, messages, setMessages }) => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const parseComponents = (text) => {
-        const match = text.match(/```components\s*\n?([\s\S]*?)```/);
+    const parseSystemDesign = (text) => {
+        const match = text.match(/```system_design\s*\n?([\s\S]*?)```/);
         if (match) {
             try {
                 return JSON.parse(match[1]);
@@ -23,7 +23,7 @@ const AIChatPanel = ({ onSuggestComponents, messages, setMessages }) => {
     };
 
     const cleanMessage = (text) => {
-        return text.replace(/```components[\s\S]*?```/g, '').trim();
+        return text.replace(/```system_design[\s\S]*?```/g, '').trim();
     };
 
     const handleSend = async () => {
@@ -51,10 +51,10 @@ const AIChatPanel = ({ onSuggestComponents, messages, setMessages }) => {
             const reply = data.reply || 'Oops! Something went wrong.';
             const thoughtProcess = data.thoughtProcess || null;
 
-            // Parse components from AI response
-            const components = parseComponents(reply);
-            if (components && onSuggestComponents) {
-                onSuggestComponents(components);
+            // Parse system design from AI response
+            const design = parseSystemDesign(reply);
+            if (design && onSuggestSystemDesign) {
+                onSuggestSystemDesign(design);
             }
 
             setMessages(prev => [...prev, { role: 'assistant', content: reply, thoughtProcess }]);
@@ -87,7 +87,7 @@ const AIChatPanel = ({ onSuggestComponents, messages, setMessages }) => {
 
     const renderMessage = (msg, idx) => {
         const isBot = msg.role === 'assistant';
-        const components = parseComponents(msg.content);
+        const design = parseSystemDesign(msg.content);
         const cleanText = cleanMessage(msg.content);
 
         return (
@@ -107,13 +107,21 @@ const AIChatPanel = ({ onSuggestComponents, messages, setMessages }) => {
                             <p key={i} className="mb-1">{line.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')}</p>
                         ))}
                     </div>
-                    {components && (
+                    {design && (
                         <div className="mt-2 space-y-1">
-                            {components.map((comp, ci) => (
-                                <div key={ci} className={`p-2 border-2 border-black ${componentColors[comp.id] || 'bg-gray-100'} text-xs font-black flex items-center gap-2`}>
-                                    <Zap size={12} />
-                                    <span className="uppercase">{componentNames[comp.id] || comp.id}</span>
-                                    <span className="font-bold opacity-70 ml-1">— {comp.reason}</span>
+                            {design.map((level, li) => (
+                                <div key={li} className="p-2 border-2 border-black bg-white text-[10px] font-black flex flex-col gap-1">
+                                    <div className="flex items-center gap-2 text-gray-400">
+                                        <Zap size={10} />
+                                        <span>LEVEL {li + 1}: {level.title}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="bg-[#33FF66] text-black px-1.5 py-0.5 border border-black uppercase">
+                                            {level.best_practice.name}
+                                        </div>
+                                        <span className="font-bold whitespace-nowrap">— BEST PRACTICE</span>
+                                    </div>
+                                    <p className="font-bold text-gray-500 italic mt-0.5">{level.best_practice.reason}</p>
                                 </div>
                             ))}
                         </div>

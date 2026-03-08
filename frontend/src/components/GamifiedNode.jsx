@@ -4,13 +4,15 @@ import { PIPELINE_STEPS } from './pipelineConfig';
 import { Lock, Play, Check } from 'lucide-react';
 
 const GamifiedNode = ({ data }) => {
-    const { stepId, status, selectedOption } = data; // 'locked', 'active', 'completed'
+    const { stepId, status, selectedOption, bestPractice, title: nodeTitle } = data; // 'locked', 'active', 'completed'
 
     // Find step info
-    const stepDef = PIPELINE_STEPS.find(s => s.id === stepId) || PIPELINE_STEPS[0];
+    const stepDef = PIPELINE_STEPS.find(s => s.id === stepId) || { title: nodeTitle, color: '#FFD700' };
 
     // Find tech info if completed
-    const techOpt = selectedOption ? stepDef.options.find(o => o.id === selectedOption) : null;
+    const techOpt = selectedOption
+        ? (PIPELINE_STEPS.find(s => s.id === stepId)?.options.find(o => o.id === selectedOption) || { name: selectedOption })
+        : null;
 
     const isActive = status === 'active';
     const isCompleted = status === 'completed';
@@ -19,8 +21,8 @@ const GamifiedNode = ({ data }) => {
     // Styling based on state
     const bg = isCompleted ? '#33FF66' : isActive ? '#FFD700' : '#FF3366';
     const ring = isCompleted ? '#33FF66' : isActive ? '#FFD700' : '#FF3366';
-    const label = isCompleted ? (techOpt?.name || 'Done') : stepDef.title;
-    const logo = isCompleted ? (techOpt?.logo || '✅') : (isLocked ? <Lock size={20} /> : <Play size={20} />);
+    const label = isCompleted ? (techOpt?.name || 'Done') : (stepDef.title || nodeTitle);
+    const logo = isCompleted ? (techOpt?.logo || '✅') : (isLocked ? <Lock size={20} /> : (bestPractice?.name || <Play size={20} />));
 
     return (
         <div className="flex flex-col items-center font-mono">

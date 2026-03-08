@@ -44,6 +44,7 @@ const Workspace = () => {
     const [showRepoInput, setShowRepoInput] = useState(false);
     const [repoUrl, setRepoUrl] = useState('');
     const [selectedModel, setSelectedModel] = useState('groq'); // Use Groq as default since Gemini is buggy for user
+    const [systemDesign, setSystemDesign] = useState(null); // Dynamic steps from AI
 
     // Lifted chat state
     const [chatHistory, setChatHistory] = useState([
@@ -315,10 +316,34 @@ const Workspace = () => {
         }
     };
 
-    const handleSuggestComponents = () => {
-        // Kick off gamified pipeline
-        setNodes(PIPELINE_NODES);
-        setEdges(PIPELINE_EDGES);
+    const handleSuggestSystemDesign = (design) => {
+        setSystemDesign(design);
+
+        const newNodes = design.map((level, i) => ({
+            id: `step-${level.id}`,
+            type: 'gamifiedNode',
+            position: { x: 50 + i * 220, y: 250 },
+            data: {
+                stepId: level.id,
+                title: level.title,
+                status: i === 0 ? 'active' : 'locked',
+                selectedOption: null,
+                bestPractice: level.best_practice,
+                alternatives: level.alternatives
+            },
+        }));
+
+        const newEdges = design.slice(0, -1).map((level, i) => ({
+            id: `e-${level.id}-${design[i + 1].id}`,
+            source: `step-${level.id}`,
+            target: `step-${design[i + 1].id}`,
+            type: 'smoothstep',
+            animated: true,
+            style: { stroke: '#000', strokeWidth: 3, strokeDasharray: '5,5' },
+        }));
+
+        setNodes(newNodes);
+        setEdges(newEdges);
     };
 
     const handleSelectOption = (stepId, selectedOptionId) => {
@@ -361,8 +386,17 @@ const Workspace = () => {
         setGenerationStatus('🧠 Planning your project architecture...');
 
         const stackDescription = nodes.map(n => {
-            const stepOpt = PIPELINE_STEPS.find(s => s.id === n.data.stepId)?.options.find(o => o.id === n.data.selectedOption);
-            return `${n.data.title}: ${stepOpt?.name || 'None'}`;
+            const stepId = n.data.stepId;
+            const selectedId = n.data.selectedOption;
+
+            // Try static first
+            let opt = PIPELINE_STEPS.find(s => s.id === stepId)?.options.find(o => o.id === selectedId);
+
+            // If not found, try dynamic node data (the AI suggested path)
+            if (!opt && n.data.bestPractice?.id === selectedId) opt = n.data.bestPractice;
+            if (!opt && n.data.alternatives) opt = n.data.alternatives.find(a => a.id === selectedId);
+
+            return `${n.data.title}: ${opt?.name || selectedId || 'None'}`;
         }).join(', ');
 
         const userIdea = chatHistory.find(msg => msg.role === 'user')?.content || 'a full-stack web application';
@@ -717,7 +751,7 @@ const Workspace = () => {
                     {/* AI Chat */}
                     <div className="flex-1 overflow-hidden">
                         <AIChatPanel
-                            onSuggestComponents={handleSuggestComponents}
+                            onSuggestSystemDesign={handleSuggestSystemDesign}
                             messages={chatHistory}
                             setMessages={setChatHistory}
                         />
