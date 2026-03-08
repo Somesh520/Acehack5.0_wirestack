@@ -104,7 +104,7 @@ router.post('/chat', async (req, res) => {
         // ENGINE 2: FALLBACK (Google Gemini 1.5 Pro)
         if (process.env.GEMINI_API_KEY) {
             const model = genAI.getGenerativeModel({
-                model: "gemini-1.5-pro-latest",
+                model: "gemini-2.0-flash",
                 systemInstruction: SYSTEM_PROMPT + "\n\nCRITICAL: Before providing your final response, you MUST think step-by-step. Wrap your internal thought process inside <thought>...</thought> tags. Then provide your final response to the user.",
             });
 
