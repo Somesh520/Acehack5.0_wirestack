@@ -16,7 +16,7 @@ import NodeOptionsPanel from './NodeOptionsPanel';
 import { workflowNodeTypes } from './WorkflowNode';
 import DeveloperNode from './DeveloperNode';
 import { PIPELINE_NODES, PIPELINE_EDGES, PIPELINE_STEPS } from './pipelineConfig';
-import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut } from 'lucide-react';
 
 const initialNodes = [];
 const initialEdges = [];
@@ -32,6 +32,7 @@ const Workspace = () => {
     const [selectedNode, setSelectedNode] = useState(null);
     const [generatedFiles, setGeneratedFiles] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [showProjectMenu, setShowProjectMenu] = useState(false);
 
     // Lifted chat state
     const [chatHistory, setChatHistory] = useState([
@@ -595,14 +596,59 @@ const Workspace = () => {
             <header className="h-14 border-b-4 border-black bg-white flex items-center justify-between px-4 z-30 shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="bg-black text-white p-1 font-black text-lg px-2 border-2 border-black">WS</div>
-                    <h1 className="font-black text-lg uppercase tracking-tighter">
-                        <span className="text-gray-500">Workspace /</span> <span className="text-[#FF3366]">{activeWorkspace?.name || 'MyProject-1'}</span>
-                    </h1>
-                    {user && (
-                        <span className="ml-2 font-bold text-xs bg-black text-white px-2 py-1">
-                            HELLO, {user.first_name?.toUpperCase()}!
-                        </span>
-                    )}
+
+                    {/* Project Selector */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowProjectMenu(!showProjectMenu)}
+                            className="flex items-center gap-2 font-black text-lg uppercase tracking-tighter hover:text-[#FF3366] transition-colors"
+                        >
+                            <FolderOpen size={16} className="text-[#FF3366]" />
+                            <span className="text-gray-500">Project /</span>
+                            <span className="text-[#FF3366]">{activeWorkspace?.name || 'MyProject-1'}</span>
+                            <ChevronRight size={14} className={`transition-transform ${showProjectMenu ? 'rotate-90' : ''}`} />
+                        </button>
+
+                        {/* Dropdown */}
+                        {showProjectMenu && (
+                            <div className="absolute top-full left-0 mt-2 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] min-w-[220px] z-50">
+                                {/* New Project Button */}
+                                <button
+                                    onClick={() => {
+                                        handleCreateWorkspace();
+                                        setGeneratedFiles(null);
+                                        setShowProjectMenu(false);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-4 py-3 font-black text-sm uppercase bg-[#33FF66] hover:bg-[#2be05a] border-b-3 border-black transition-colors"
+                                >
+                                    <Plus size={16} /> NEW PROJECT
+                                </button>
+
+                                {/* Existing Projects */}
+                                <div className="max-h-[200px] overflow-y-auto">
+                                    {workspaces.map((ws) => (
+                                        <button
+                                            key={ws._id}
+                                            onClick={() => {
+                                                handleSelectWorkspace(ws);
+                                                setGeneratedFiles(null);
+                                                setShowProjectMenu(false);
+                                            }}
+                                            className={`w-full flex items-center gap-2 px-4 py-2.5 font-bold text-sm text-left hover:bg-gray-100 border-b border-gray-200 transition-colors ${activeWorkspace?._id === ws._id ? 'bg-[#FFD700]/30 text-black' : 'text-gray-700'
+                                                }`}
+                                        >
+                                            <FolderOpen size={14} />
+                                            {ws.name}
+                                        </button>
+                                    ))}
+                                    {workspaces.length === 0 && (
+                                        <p className="px-4 py-3 text-xs text-gray-400 font-bold">No projects yet. Create one!</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <span className="text-xs font-black uppercase text-gray-400 ml-2">
                         Role: <span className="text-black bg-[#FFD700] px-2 py-0.5 border-2 border-black ml-1">{user?.user_type}</span>
                     </span>
@@ -620,9 +666,28 @@ const Workspace = () => {
                         {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play size={16} />}
                         GENERATE BOILERPLATE
                     </button>
-                    <button className="p-1.5 border-3 border-black bg-white hover:bg-gray-100">
-                        <Settings size={18} />
-                    </button>
+
+                    {/* User Avatar + Logout */}
+                    {user && (
+                        <div className="flex items-center gap-2 ml-2 border-l-2 border-gray-300 pl-3">
+                            <div className="w-8 h-8 border-2 border-black bg-[#00F0FF] overflow-hidden shrink-0">
+                                {user.profile_picture ? (
+                                    <img src={user.profile_picture} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center font-black text-sm">
+                                        {user.first_name?.[0]}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => window.location.href = '/api/auth/logout'}
+                                className="p-1 border-2 border-black hover:bg-black hover:text-white transition-colors"
+                                title="Logout"
+                            >
+                                <LogOut size={14} />
+                            </button>
+                        </div>
+                    )}
                 </div>
             </header>
 
