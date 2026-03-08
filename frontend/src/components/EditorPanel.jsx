@@ -313,7 +313,22 @@ const EditorPanel = ({ files, generationStatus }) => {
                     </>
                 ) : (
                     /* Preview Mode */
-                    <div className="flex-1 bg-white relative">
+                    <div className="flex-1 bg-white relative group">
+                        <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                onClick={() => {
+                                    const html = getPreviewHtml();
+                                    const blob = new Blob([html], { type: 'text/html' });
+                                    const url = URL.createObjectURL(blob);
+                                    window.open(url, '_blank');
+                                    // Cleanup url after a short delay
+                                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                                }}
+                                className="px-4 py-2 bg-black text-white font-black text-xs uppercase shadow-[4px_4px_0px_0px_rgba(255,215,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all border-2 border-[#FFD700]"
+                            >
+                                ↗ Open in New Tab
+                            </button>
+                        </div>
                         <iframe
                             title="Preview"
                             srcDoc={getPreviewHtml()}
