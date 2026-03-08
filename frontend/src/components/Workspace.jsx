@@ -33,6 +33,7 @@ const Workspace = () => {
     const [generatedFiles, setGeneratedFiles] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [showProjectMenu, setShowProjectMenu] = useState(false);
+    const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
 
     // Lifted chat state
     const [chatHistory, setChatHistory] = useState([
@@ -88,6 +89,38 @@ const Workspace = () => {
         setActiveWorkspace(ws);
         setNodes(ws.nodes || []);
         setEdges(ws.edges || []);
+    };
+
+    const handleSaveWorkspace = async () => {
+        if (!activeWorkspace?._id) {
+            // Auto-create a workspace if none exists
+            await handleCreateWorkspace();
+            return;
+        }
+
+        setSaveStatus('saving');
+        try {
+            const res = await fetch(`/api/workspace/${activeWorkspace._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nodes,
+                    edges,
+                    chat_history: chatHistory,
+                }),
+                credentials: 'include'
+            });
+
+            if (!res.ok) throw new Error('Save failed');
+            const updated = await res.json();
+            setActiveWorkspace(updated);
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus(null), 2000);
+        } catch (err) {
+            console.error('Error saving workspace:', err);
+            setSaveStatus('error');
+            setTimeout(() => setSaveStatus(null), 3000);
+        }
     };
 
     const handleSuggestComponents = () => {
@@ -655,8 +688,14 @@ const Workspace = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-3 py-1.5 border-3 border-black bg-[#00F0FF] font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all">
-                        <Save size={16} /> SAVE
+                    <button
+                        onClick={handleSaveWorkspace}
+                        disabled={saveStatus === 'saving'}
+                        className={`flex items-center gap-2 px-3 py-1.5 border-3 border-black font-black text-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all ${saveStatus === 'saved' ? 'bg-[#33FF66]' : saveStatus === 'error' ? 'bg-[#FF3366] text-white' : 'bg-[#00F0FF]'
+                            }`}
+                    >
+                        {saveStatus === 'saving' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        {saveStatus === 'saved' ? 'SAVED ✓' : saveStatus === 'error' ? 'ERROR ✗' : saveStatus === 'saving' ? 'SAVING...' : 'SAVE'}
                     </button>
                     <button
                         onClick={handleGenerateBoilerplate}
