@@ -89,8 +89,8 @@ router.post('/chat', async (req, res) => {
         { provider: 'groq', modelId: 'llama-3.3-70b-versatile', engineName: 'Groq (Llama 3.3 70B)' },
         { provider: 'groq', modelId: 'llama-3.1-8b-instant', engineName: 'Groq (Llama 3.1 8B)' }, // Valid Groq fallback
         { provider: 'gemini', modelId: 'gemini-2.5-flash', engineName: 'Gemini (2.5 Flash)' }, // Very Latest Gemini
-        { provider: 'gemini', modelId: 'gemini-1.5-flash-latest', engineName: 'Gemini (1.5 Flash)' }, // Valid API name
-        { provider: 'gemini', modelId: 'gemini-1.5-pro-latest', engineName: 'Gemini (1.5 Pro)' }      // Valid API name
+        { provider: 'gemini', modelId: 'gemini-1.5-flash', engineName: 'Gemini (1.5 Flash)' }, // Valid API name
+        { provider: 'gemini', modelId: 'gemini-1.5-pro', engineName: 'Gemini (1.5 Pro)' }      // Valid API name
     ];
 
     let lastError = null;
@@ -165,8 +165,8 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
         { provider: 'groq', modelId: 'llama-3.3-70b-versatile', engineName: 'Groq (Llama 3.3 70B)' },
         { provider: 'groq', modelId: 'llama-3.1-8b-instant', engineName: 'Groq (Llama 3.1 8B)' },
         { provider: 'gemini', modelId: 'gemini-2.5-flash', engineName: 'Gemini (2.5 Flash)' },
-        { provider: 'gemini', modelId: 'gemini-1.5-flash-latest', engineName: 'Gemini (1.5 Flash)' },
-        { provider: 'gemini', modelId: 'gemini-1.5-pro-latest', engineName: 'Gemini (1.5 Pro)' }
+        { provider: 'gemini', modelId: 'gemini-1.5-flash', engineName: 'Gemini (1.5 Flash)' },
+        { provider: 'gemini', modelId: 'gemini-1.5-pro', engineName: 'Gemini (1.5 Pro)' }
     ];
 
     let lastError = null;
