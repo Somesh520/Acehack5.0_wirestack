@@ -1050,7 +1050,7 @@ const Workspace = () => {
                         activeWorkspace={activeWorkspace}
                         onCreateWorkspace={handleCreateWorkspace}
                         onSelectWorkspace={handleSelectWorkspace}
-                        onSuggestComponents={handleSuggestComponents}
+                        onSuggestSystemDesign={handleSuggestSystemDesign}
                         compact={true}
                     />
                 </div>
