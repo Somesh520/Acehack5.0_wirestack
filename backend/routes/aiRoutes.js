@@ -483,6 +483,11 @@ router.post('/analyze-folder', async (req, res) => {
     }
 
     // Smart file selection: prioritize config, package, docker, env, key source files
+    const isGroq = model === 'groq';
+    const maxFiles = isGroq ? 10 : 20;
+    const maxLines = isGroq ? 60 : 500;
+    const maxSourceFiles = isGroq ? 15 : 20;
+
     const importantPatterns = [
         /package\.json$/i, /requirements\.txt$/i, /Pipfile$/i, /go\.mod$/i, /pom\.xml$/i, /build\.gradle$/i,
         /docker/i, /compose/i, /\.env\.example$/i, /nginx/i, /Procfile$/i,
@@ -492,28 +497,28 @@ router.post('/analyze-folder', async (req, res) => {
         /routes?\//i, /middleware/i, /config\//i, /\.yaml$/i, /\.yml$/i, /\.toml$/i,
     ];
 
-    // Pick important files (with content) — max 20 files, max 500 lines each
+    // Pick important files (with content) — max files based on model
     const importantFiles = [];
     const allFileNames = files.map(f => f.name);
 
     for (const file of files) {
-        if (importantFiles.length >= 20) break;
+        if (importantFiles.length >= maxFiles) break;
         const isImportant = importantPatterns.some(p => p.test(file.name));
         if (isImportant && file.content) {
-            const truncated = file.content.split('\n').slice(0, 500).join('\n');
+            const truncated = file.content.split('\n').slice(0, maxLines).join('\n');
             importantFiles.push({ name: file.name, content: truncated });
         }
     }
 
-    // If we got less than 8, also add some source files
-    if (importantFiles.length < 8) {
+    // If we got less than enough, also add some source files
+    if (importantFiles.length < Math.floor(maxFiles * 0.4)) {
         const sourcePatterns = [/\.(js|ts|jsx|tsx|py|go|rs|java|rb)$/i];
         for (const file of files) {
-            if (importantFiles.length >= 15) break;
+            if (importantFiles.length >= maxSourceFiles) break;
             if (importantFiles.find(f => f.name === file.name)) continue;
             const isSource = sourcePatterns.some(p => p.test(file.name));
             if (isSource && file.content) {
-                const truncated = file.content.split('\n').slice(0, 300).join('\n');
+                const truncated = file.content.split('\n').slice(0, Math.floor(maxLines * 0.6)).join('\n');
                 importantFiles.push({ name: file.name, content: truncated });
             }
         }
@@ -577,7 +582,7 @@ KEY FILES:
 ${importantFiles.map(f => `\n--- ${f.name} ---\n${f.content}`).join('\n')}`;
 
     try {
-        console.log(`📂 Analyzing folder: ${folderName} (${allFileNames.length} files, ${importantFiles.length} analyzed) using ${model || 'default'} model`);
+        console.log(`📂 Analyzing folder: ${folderName} (${allFileNames.length} files, ${importantFiles.length} analyzed) using ${model || 'default'} model (isGroq: ${isGroq})`);
         const raw = await callLLM(systemPrompt, userPrompt, 4000, 2, model);
 
         let analysis;
@@ -648,6 +653,11 @@ router.post('/analyze-repo', async (req, res) => {
         const allPaths = allFiles.map(f => f.path);
 
         // 2. Smart file selection — prioritize config and key source files
+        const isGroq = model === 'groq';
+        const maxFiles = isGroq ? 10 : 25;
+        const maxLines = isGroq ? 60 : 200;
+        const maxTreeLines = isGroq ? 40 : 80;
+
         const highPriority = [
             /^package\.json$/i, /^requirements\.txt$/i, /^Pipfile$/i, /^go\.mod$/i, /^pom\.xml$/i,
             /^Dockerfile/i, /docker-compose/i, /^\.env\.example$/i, /^Procfile$/i,
@@ -674,7 +684,7 @@ router.post('/analyze-repo', async (req, res) => {
 
         // High priority first
         for (const path of skippedPaths) {
-            if (filesToFetch.length >= 15) break;
+            if (filesToFetch.length >= Math.ceil(maxFiles * 0.6)) break;
             if (highPriority.some(p => p.test(path))) {
                 filesToFetch.push(path);
             }
@@ -682,7 +692,7 @@ router.post('/analyze-repo', async (req, res) => {
 
         // Medium priority
         for (const path of skippedPaths) {
-            if (filesToFetch.length >= 20) break;
+            if (filesToFetch.length >= Math.ceil(maxFiles * 0.8)) break;
             if (filesToFetch.includes(path)) continue;
             if (medPriority.some(p => p.test(path))) {
                 filesToFetch.push(path);
@@ -692,7 +702,7 @@ router.post('/analyze-repo', async (req, res) => {
         // Fill remaining with source files
         const sourceExts = [/\.(js|ts|jsx|tsx|py|go|rs|java|rb)$/i];
         for (const path of skippedPaths) {
-            if (filesToFetch.length >= 25) break;
+            if (filesToFetch.length >= maxFiles) break;
             if (filesToFetch.includes(path)) continue;
             if (sourceExts.some(p => p.test(path))) {
                 filesToFetch.push(path);
@@ -712,8 +722,8 @@ router.post('/analyze-repo', async (req, res) => {
                     // GitHub returns base64 encoded content
                     if (fileData.content && fileData.encoding === 'base64') {
                         const decoded = Buffer.from(fileData.content, 'base64').toString('utf-8');
-                        // Truncate to 200 lines to stay within token limits
-                        const truncated = decoded.split('\n').slice(0, 200).join('\n');
+                        // Truncate based on model limits
+                        const truncated = decoded.split('\n').slice(0, maxLines).join('\n');
                         return { name: path, content: truncated };
                     }
                     return { name: path, content: '[Binary or empty file]' };
@@ -723,10 +733,10 @@ router.post('/analyze-repo', async (req, res) => {
             })
         );
 
-        console.log(`📂 Fetched ${fileContents.length} files from ${owner}/${repo} (total ${allPaths.length} in repo)`);
+        console.log(`📂 Fetched ${fileContents.length} files from ${owner}/${repo} (total ${allPaths.length} in repo) using ${model || 'default'}`);
 
         // 4. Build the tree summary
-        const treeStr = skippedPaths.slice(0, 80).join('\n');
+        const treeStr = skippedPaths.slice(0, maxTreeLines).join('\n');
 
         const systemPrompt = `You are a senior cloud architect, security expert, and DevOps consultant analyzing a GitHub repository.
 
