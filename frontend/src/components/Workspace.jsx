@@ -229,6 +229,86 @@ const Workspace = () => {
         }
     };
 
+    const handleGenerateBoilerplate = async () => {
+        if (nodes.length === 0) {
+            alert('Please drag at least one technology onto the canvas first!');
+            return;
+        }
+
+        setIsGenerating(true);
+        setGeneratedFiles(null);
+        setGenerationStatus('🧠 Planning boilerplate architecture...');
+
+        // Extract labels from all dropped nodes
+        const stackItems = nodes.map(n => n.type || n.data?.label || 'Unknown Node');
+
+        // Remove the default "-{number}" we append in onDrop, to get pure names
+        const cleanStackItems = stackItems.map(item => item.split('-')[0].trim());
+        const uniqueStack = [...new Set(cleanStackItems)].join(', ');
+
+        const boilerplateIdea = 'Production-ready Boilerplate setup with basic routing, configuration, and database connection.';
+
+        try {
+            // STEP 1: Plan
+            const planRes = await fetch('/api/ai/generate-plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idea: boilerplateIdea, stack: uniqueStack }),
+                credentials: 'include'
+            });
+
+            if (!planRes.ok) throw new Error('Plan generation failed');
+            const { plan } = await planRes.json();
+
+            setGenerationStatus(`📋 Boilerplate Plan ready! Generating ${plan.length} initial files...`);
+
+            const projectTree = { name: 'developer-boilerplate', children: [] };
+            setGeneratedFiles({ ...projectTree });
+
+            // STEP 2: Generate
+            const generatedSoFar = [];
+            for (let i = 0; i < plan.length; i++) {
+                const file = plan[i];
+                setGenerationStatus(`⚡ Generating ${file.name} (${i + 1}/${plan.length})...`);
+
+                const fileRes = await fetch('/api/ai/generate-file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        idea: boilerplateIdea,
+                        stack: uniqueStack,
+                        fileName: file.name,
+                        filePurpose: file.purpose,
+                        existingFiles: generatedSoFar
+                    }),
+                    credentials: 'include'
+                });
+
+                if (fileRes.ok) {
+                    const fileData = await fileRes.json();
+                    generatedSoFar.push(fileData);
+                } else {
+                    generatedSoFar.push({ name: file.name, content: `// Error generating file` });
+                }
+
+                setGeneratedFiles({
+                    name: 'developer-boilerplate',
+                    children: [...generatedSoFar]
+                });
+            }
+
+            setGenerationStatus(`✅ Boilerplate ready! Download the ZIP to start coding.`);
+
+        } catch (err) {
+            console.error('Boilerplate gen error:', err);
+            setGenerationStatus(`❌ Error: ${err.message}`);
+            alert('Failed to generate boilerplate: ' + err.message);
+        } finally {
+            setIsGenerating(false);
+            setTimeout(() => setGenerationStatus(null), 5000);
+        }
+    };
+
     const allCompleted = nodes.length > 0 && nodes.every(n => n.data.status === 'completed');
 
     const onNodesChange = useCallback(
@@ -533,8 +613,13 @@ const Workspace = () => {
                         <button className="flex items-center gap-2 px-4 py-2 border-4 border-black bg-[#00F0FF] font-black hover:translate-x-1 hover:translate-y-1 hover:shadow-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
                             <Save size={20} /> SAVE
                         </button>
-                        <button className="flex items-center gap-2 px-6 py-2 border-4 border-black bg-[#33FF66] font-black hover:translate-x-1 hover:translate-y-1 hover:shadow-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
-                            <Play size={20} /> DEPLOY
+                        <button
+                            onClick={handleGenerateBoilerplate}
+                            disabled={isGenerating || nodes.length === 0}
+                            className="flex items-center gap-2 px-6 py-2 border-4 border-black bg-[#33FF66] font-black hover:translate-x-1 hover:translate-y-1 hover:shadow-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+                        >
+                            {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play size={20} />}
+                            GENERATE BOILERPLATE
                         </button>
                         <button className="p-2 border-4 border-black bg-white hover:bg-gray-100">
                             <Settings size={24} />
@@ -543,26 +628,50 @@ const Workspace = () => {
                 </header>
 
                 {/* Canvas */}
-                <div className="flex-1 relative">
-                    <ReactFlow
-                        nodes={nodes}
-                        edges={edges}
-                        onNodesChange={onNodesChange}
-                        onEdgesChange={onEdgesChange}
-                        onConnect={onConnect}
-                        onDrop={onDrop}
-                        onDragOver={onDragOver}
-                        nodeTypes={workflowNodeTypes}
-                        fitView
-                    >
-                        <Background color="#000" variant="dots" gap={20} size={1} />
-                        <Controls className="!bg-white !border-4 !border-black !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" />
-                        <MiniMap
-                            className="!bg-white !border-4 !border-black !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                            nodeColor={() => '#FF3366'}
-                            maskColor="rgba(0, 0, 0, 0.1)"
-                        />
-                    </ReactFlow>
+                <div className="flex-1 relative flex">
+                    <div className="flex-1 relative">
+                        <ReactFlow
+                            nodes={nodes}
+                            edges={edges}
+                            onNodesChange={onNodesChange}
+                            onEdgesChange={onEdgesChange}
+                            onConnect={onConnect}
+                            onDrop={onDrop}
+                            onDragOver={onDragOver}
+                            nodeTypes={workflowNodeTypes}
+                            fitView
+                        >
+                            <Background color="#000" variant="dots" gap={20} size={1} />
+                            <Controls className="!bg-white !border-4 !border-black !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" />
+                            <MiniMap
+                                className="!bg-white !border-4 !border-black !shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                                nodeColor={() => '#FF3366'}
+                                maskColor="rgba(0, 0, 0, 0.1)"
+                            />
+                        </ReactFlow>
+
+                        {/* Loading Overlay for Generation */}
+                        {isGenerating && (
+                            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                                <div className="bg-white border-4 border-black p-8 flex flex-col items-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-md">
+                                    <Loader2 className="w-16 h-16 animate-spin text-[#FFD700] mb-4" />
+                                    <h2 className="font-black text-2xl uppercase tracking-widest text-[#FF3366]">Scaffolding Code...</h2>
+                                    {generationStatus && (
+                                        <p className="font-bold text-sm text-gray-700 mt-3 text-center bg-gray-100 border-2 border-black px-4 py-2">
+                                            {generationStatus}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Developer Editor Overlay/Split Panel */}
+                    {(generatedFiles || isGenerating) && (
+                        <div className="w-[400px] shrink-0 border-l-4 border-black bg-[#1a1a2e] relative z-40 flex flex-col">
+                            <EditorPanel files={generatedFiles} generationStatus={generationStatus} />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

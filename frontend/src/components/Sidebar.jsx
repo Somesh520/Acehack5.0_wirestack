@@ -13,46 +13,37 @@ import {
     Plus,
     FolderOpen,
     Clock,
-    MessageSquare
+    MessageSquare,
+    Layout,
+    FileCode2,
+    PaintBucket,
+    HardDrive,
+    Network,
+    Container
 } from 'lucide-react';
 import AIChatPanel from './AIChatPanel';
 
 const nodeTypes = [
-    {
-        id: 'express',
-        label: 'Express Server',
-        icon: <Server className="w-6 h-6" />,
-        color: 'bg-[#00F0FF]',
-        description: 'Node.js backend framework'
-    },
-    {
-        id: 'mongodb',
-        label: 'MongoDB',
-        icon: <Database className="w-6 h-6" />,
-        color: 'bg-[#33FF66]',
-        description: 'NoSQL Database'
-    },
-    {
-        id: 'auth',
-        label: 'Google Auth',
-        icon: <ShieldCheck className="w-6 h-6" />,
-        color: 'bg-[#FF3366]',
-        description: 'Google OAuth integration'
-    },
-    {
-        id: 'react',
-        label: 'React Frontend',
-        icon: <Globe className="w-6 h-6" />,
-        color: 'bg-[#A020F0]',
-        description: 'UI/UX interface'
-    },
-    {
-        id: 'stripe',
-        label: 'Stripe Pay',
-        icon: <Box className="w-6 h-6" />,
-        color: 'bg-[#FFA500]',
-        description: 'Payment gateway integration'
-    },
+    // Frontend
+    { id: 'nextjs', label: 'Next.js', icon: <Layout className="w-6 h-6" />, color: 'bg-[#ffffff]', textColor: 'text-black', description: 'React framework for production' },
+    { id: 'react', label: 'React', icon: <Globe className="w-6 h-6" />, color: 'bg-[#00d8ff]', textColor: 'text-black', description: 'UI/UX interface library' },
+    { id: 'vue', label: 'Vue.js', icon: <FileCode2 className="w-6 h-6" />, color: 'bg-[#42b883]', textColor: 'text-white', description: 'Progressive JS framework' },
+
+    // Styling
+    { id: 'tailwindcss', label: 'Tailwind CSS', icon: <PaintBucket className="w-6 h-6" />, color: 'bg-[#38bdf8]', textColor: 'text-white', description: 'Utility-first CSS framework' },
+
+    // Backend
+    { id: 'express', label: 'Express.js', icon: <Server className="w-6 h-6" />, color: 'bg-[#eeeeee]', textColor: 'text-black', description: 'Node.js backend framework' },
+    { id: 'django', label: 'Django', icon: <Code2 className="w-6 h-6" />, color: 'bg-[#092e20]', textColor: 'text-white', description: 'Python web framework' },
+
+    // Database
+    { id: 'postgres', label: 'PostgreSQL', icon: <HardDrive className="w-6 h-6" />, color: 'bg-[#336791]', textColor: 'text-white', description: 'Relational database' },
+    { id: 'mongodb', label: 'MongoDB', icon: <Database className="w-6 h-6" />, color: 'bg-[#47a248]', textColor: 'text-white', description: 'NoSQL document database' },
+    { id: 'redis', label: 'Redis', icon: <Network className="w-6 h-6" />, color: 'bg-[#d82c20]', textColor: 'text-white', description: 'In-memory data store' },
+
+    // Infrastructure / Tools
+    { id: 'docker', label: 'Docker', icon: <Container className="w-6 h-6" />, color: 'bg-[#2496ed]', textColor: 'text-white', description: 'Containerization platform' },
+    { id: 'auth', label: 'Google Auth', icon: <ShieldCheck className="w-6 h-6" />, color: 'bg-[#ea4335]', textColor: 'text-white', description: 'Google OAuth integration' },
 ];
 
 const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, onSelectWorkspace, onSuggestComponents }) => {
@@ -124,17 +115,17 @@ const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, on
                     {nodeTypes.map((node) => (
                         <div
                             key={node.id}
-                            className={`cursor-grab p-4 border-4 border-black ${node.color} shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all`}
+                            className={`cursor-grab p-3 border-4 border-black ${node.color} ${node.textColor || 'text-black'} shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all`}
                             onDragStart={(event) => onDragStart(event, node.id)}
                             draggable
                         >
                             <div className="flex items-center gap-3">
-                                <div className="bg-white p-2 border-2 border-black">
+                                <div className="bg-white p-2 border-2 border-black text-black">
                                     {node.icon}
                                 </div>
                                 <div>
                                     <h3 className="font-black text-sm uppercase">{node.label}</h3>
-                                    <p className="text-[10px] font-bold opacity-80">{node.description}</p>
+                                    <p className="text-[10px] font-bold opacity-90">{node.description}</p>
                                 </div>
                             </div>
                         </div>

@@ -149,7 +149,24 @@ router.post('/generate-plan', async (req, res) => {
         return res.status(400).json({ error: 'idea and stack are required' });
     }
 
-    const systemPrompt = `You are a senior software architect. Given a project idea and tech stack, return ONLY a JSON array of files needed to build the project. Each entry has "name" (filename) and "purpose" (1-line description).
+    const isBoilerplate = idea.toLowerCase().includes('boilerplate');
+
+    const systemPrompt = isBoilerplate
+        ? `You are an expert DevOps and Architecture engineer. Given a tech stack, return ONLY a JSON array of essential boilerplate files needed to initialize the project. Each entry has "name" (filename, can include basic paths like src/index.js) and "purpose" (1-line description).
+
+RULES:
+1. Return ONLY a valid JSON array. No markdown, no text, no backticks.
+2. Include 5-8 foundational files maximum (e.g., package.json, basic config, main entry).
+3. ALWAYS include "package.json" as the FIRST file.
+4. ALWAYS include "Dockerfile" and "docker-compose.yml" for instant local development.
+5. ALWAYS include "README.md" explaining how to start the boilerplate via Docker.
+6. Do NOT invent complex business logic. Just provide clean, empty scaffolding.
+7. File names should be flat (no folders), just filenames, unless absolutely necessary.
+
+Example output:
+[{"name":"package.json","purpose":"Standard dependencies"},{"name":"server.js","purpose":"Basic API setup"},{"name":"Dockerfile","purpose":"Dockerize the app"},{"name":"docker-compose.yml","purpose":"Docker Compose config"},{"name":"README.md","purpose":"Instructions to run"}]`
+
+        : `You are a senior software architect. Given a project idea and tech stack, return ONLY a JSON array of files needed to build the project. Each entry has "name" (filename) and "purpose" (1-line description).
 
 RULES:
 1. Return ONLY a valid JSON array. No markdown, no text, no backticks.
@@ -194,6 +211,8 @@ router.post('/generate-file', async (req, res) => {
         return res.status(400).json({ error: 'idea, stack, and fileName are required' });
     }
 
+    const isBoilerplate = idea.toLowerCase().includes('boilerplate');
+
     const isHtml = fileName.endsWith('.html');
     const isJson = fileName.endsWith('.json');
     const isDocker = fileName === 'Dockerfile' || fileName === 'docker-compose.yml';
@@ -211,7 +230,9 @@ RULES:
 1. Return ONLY the file content. No markdown backticks, no explanations, no conversation.
 2. Write REAL, working, professional code that would impress hackathon judges.
 3. The code should be for: "${idea}" using stack: ${stack}.
-${isHtml ? `4. This is the MAIN DEMO FILE. You must create a FULLY FUNCTIONAL, INTERACTIVE single-page application.
+${isHtml ? (isBoilerplate
+            ? `4. Write a simple, clean, and elegant placeholder HTML file indicating the boilerplate is successfully running. Include Tailwind via CDN if Tailwind is in the stack. Do NOT build a complex application.`
+            : `4. This is the MAIN DEMO FILE. You must create a FULLY FUNCTIONAL, INTERACTIVE single-page application.
    
    CRITICAL STYLING RULES (DO NOT IGNORE):
    - You MUST include EXACTLY this line inside the <head> tag: <script src="https://cdn.tailwindcss.com"></script>
@@ -249,7 +270,7 @@ ${isHtml ? `4. This is the MAIN DEMO FILE. You must create a FULLY FUNCTIONAL, I
       - Form submissions that actually save data
       - State management using a simple JavaScript store pattern
    
-   The goal is that a hackathon judge can click through this preview and see a REAL, WORKING application.` : ''}
+   The goal is that a hackathon judge can click through this preview and see a REAL, WORKING application.`) : ''}
 ${isJson ? '4. Return valid JSON only.' : ''}
 ${isDocker ? `4. Write clean, reliable Docker configurations.
    - For Dockerfile: Use Node 18+ Alpine, set WORKDIR to /app, copy package.json, run npm install, copy source, expose the correct port (usually 3000 or 8080), and run the server.
