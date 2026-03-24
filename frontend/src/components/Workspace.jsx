@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     ReactFlow,
     addEdge,
@@ -11,23 +12,92 @@ import {
 import '@xyflow/react/dist/style.css';
 import Sidebar from './Sidebar';
 import AIChatPanel from './AIChatPanel';
-import EditorPanel from './EditorPanel';
+import ProjectView from './ProjectView';
 import NodeOptionsPanel from './NodeOptionsPanel';
 import AnalysisModal from './AnalysisModal';
 import { workflowNodeTypes } from './WorkflowNode';
 import DeveloperNode from './DeveloperNode';
 import GamifiedNode from './GamifiedNode';
 import { PIPELINE_NODES, PIPELINE_EDGES, PIPELINE_STEPS } from './pipelineConfig';
-import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut, BarChart3, FolderUp, Github } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut, BarChart3, FolderUp, Github, Trash } from 'lucide-react';
 
-const initialNodes = [];
-const initialEdges = [];
+const initialNodes = JSON.parse(localStorage.getItem('ws_nodes')) || [];
+const initialEdges = JSON.parse(localStorage.getItem('ws_edges')) || [];
+const initialChat = JSON.parse(localStorage.getItem('ws_chat')) || [
+    {
+        role: 'assistant',
+        content: "Hey! 👋 I'm **WireStack AI**! Tell me what app you want to build and I'll help you pick the perfect tech stack! 🚀\n\nFor example: *\"I want to build an e-commerce website\"*"
+    }
+];
 
 const Workspace = () => {
+    const navigate = useNavigate();
     const reactFlowWrapper = useRef(null);
     const [nodes, setNodes] = useState(initialNodes);
     const [edges, setEdges] = useState(initialEdges);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [panelWidth, setPanelWidth] = useState(500); // Default width for Editor
+    const [isDragging, setIsDragging] = useState(false);
+    const [lastJobId, setLastJobId] = useState(null);
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [activeEditorJobId, setActiveEditorJobId] = useState(null);
+    // Handle resizing
+    const handleMouseDown = (e) => {
+        setIsDragging(true);
+        e.preventDefault();
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (!isDragging) return;
+            const newWidth = window.innerWidth - e.clientX;
+            if (newWidth > 300 && newWidth < 800) {
+                setPanelWidth(newWidth);
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+        };
+
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging]);
+    // Listen for close-editor and open-code-editor events
+    useEffect(() => {
+        const handleCloseEditor = () => {
+            setGeneratedFiles(null);
+            setIsGenerating(false);
+        };
+        const handleOpenCode = () => {
+            if (nodes.length > 0 && nodes.every(n => n.data.status === 'completed')) {
+                if (lastJobId) {
+                    console.log(`[NAV] Navigating to existing job: ${lastJobId}`);
+                    setActiveEditorJobId(lastJobId);
+                    setIsEditorOpen(true);
+                } else {
+                    handleGenerateProject();
+                }
+            } else {
+                alert('Mission not finished yet! Complete all nodes to view the code. 🚀');
+            }
+        };
+
+        window.addEventListener('close-editor', handleCloseEditor);
+        window.addEventListener('open-code-editor', handleOpenCode);
+        return () => {
+            window.removeEventListener('close-editor', handleCloseEditor);
+            window.removeEventListener('open-code-editor', handleOpenCode);
+        };
+    }, [nodes, lastJobId]);
+
     const [user, setUser] = useState(null);
     const [workspaces, setWorkspaces] = useState([]);
     const [activeWorkspace, setActiveWorkspace] = useState(null);
@@ -43,16 +113,37 @@ const Workspace = () => {
     const folderInputRef = useRef(null);
     const [showRepoInput, setShowRepoInput] = useState(false);
     const [repoUrl, setRepoUrl] = useState('');
-    const [selectedModel, setSelectedModel] = useState('groq'); // Use Groq as default since Gemini is buggy for user
+    const [selectedModel, setSelectedModel] = useState('nvidia'); // Use Nvidia Minimax as default
     const [systemDesign, setSystemDesign] = useState(null); // Dynamic steps from AI
 
-    // Lifted chat state
-    const [chatHistory, setChatHistory] = useState([
-        {
-            role: 'assistant',
-            content: "Hey! 👋 I'm **WireStack AI**! Tell me what app you want to build and I'll help you pick the perfect tech stack! 🚀\n\nFor example: *\"I want to build an e-commerce website\"*"
+    // Create a structural fingerprint of the current architecture
+    // We only care about node types, tech choices, and edges - NOT positions.
+    const architectureFingerprint = useMemo(() => {
+        const nds = nodes.map(n => `${n.id}:${n.data.selectedOption || ''}:${n.type}`).sort().join('|');
+        const eds = edges.map(e => `${e.source}-${e.target}`).sort().join('|');
+        return `${nds}#${eds}`;
+    }, [nodes, edges]);
+
+    // Track architectural data changes to clear lastJobId
+    const lastFingerprint = useRef(architectureFingerprint);
+
+    useEffect(() => {
+        if (lastFingerprint.current !== architectureFingerprint) {
+            console.log('[SYNC] Architecture structure changed, clearing lastJobId');
+            setLastJobId(null);
+            lastFingerprint.current = architectureFingerprint;
         }
-    ]);
+    }, [architectureFingerprint]);
+
+    // Lifted chat state
+    const [chatHistory, setChatHistory] = useState(initialChat);
+
+    // Sync to localStorage
+    useEffect(() => {
+        localStorage.setItem('ws_nodes', JSON.stringify(nodes));
+        localStorage.setItem('ws_edges', JSON.stringify(edges));
+        localStorage.setItem('ws_chat', JSON.stringify(chatHistory));
+    }, [nodes, edges, chatHistory]);
 
     useEffect(() => {
         fetch('/api/auth/me', { credentials: 'include' })
@@ -100,6 +191,16 @@ const Workspace = () => {
             const ws = await res.json();
             setWorkspaces(prev => [ws, ...prev]);
             setActiveWorkspace(ws);
+
+            // Force a completely clean slate for the UI
+            setNodes([]);
+            setEdges([]);
+            setChatHistory([{ role: 'assistant', content: "Hi! I am WireStack's AI architect. Need a system design? Describe your idea." }]);
+            setSystemDesign(null);
+            setLastJobId(null);
+            lastFingerprint.current = '#';
+            setIsEditorOpen(false);
+
             return ws; // Return the newly created workspace
         } catch (err) {
             console.error('Error creating workspace:', err);
@@ -107,12 +208,54 @@ const Workspace = () => {
         }
     };
 
+    const handleDeleteWorkspace = async (e, workspaceId) => {
+        e.stopPropagation();
+        const idStr = String(workspaceId); // Ensure it's a string, not an object
+        console.log('🗑️ [FRONTEND] Attempting to delete workspace:', idStr);
+        if (!window.confirm('Are you sure you want to delete this project? This cannot be undone.')) return;
+
+        try {
+            const response = await fetch(`/api/workspace/${idStr}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            if (response.ok) {
+                console.log('✅ [FRONTEND] Workspace deleted successfully');
+                setWorkspaces(prev => prev.filter(ws => ws._id !== workspaceId));
+                if (activeWorkspace?._id === workspaceId) {
+                    setActiveWorkspace(null);
+                    setNodes([]);
+                    setEdges([]);
+                    setChatHistory([{ role: 'assistant', content: "Project deleted. Start a new mission! 🚀" }]);
+                }
+            } else {
+                console.error('❌ [FRONTEND] Error deleting workspace. Status:', response.status);
+                alert(`Failed to delete workspace (Status: ${response.status})`);
+            }
+        } catch (err) {
+            console.error('Error deleting workspace:', err);
+        }
+    };
+
     const handleSelectWorkspace = (ws) => {
         setActiveWorkspace(ws);
-        setNodes(ws.nodes || []);
-        setEdges(ws.edges || []);
+        const wsNodes = ws.nodes || [];
+        const wsEdges = ws.edges || [];
+        setNodes(wsNodes);
+        setEdges(wsEdges);
+        setLastJobId(ws.last_job_id || null);
+        setSystemDesign(null); // Clear previous system design suggestions
+        setIsEditorOpen(false); // Close editor panel when switching workspaces
+
+        // Sync fingerprint to prevent clearing lastJobId on initial load of this workspace
+        const ndsFinger = wsNodes.map(n => `${n.id}:${n.data.selectedOption || ''}:${n.type}`).sort().join('|');
+        const edsFinger = wsEdges.map(e => `${e.source}-${e.target}`).sort().join('|');
+        lastFingerprint.current = `${ndsFinger}#${edsFinger}`;
+
         if (ws.chat_history?.length > 0) {
             setChatHistory(ws.chat_history);
+        } else {
+            setChatHistory([{ role: 'assistant', content: "Hi! I am WireStack's AI architect. Need a system design? Describe your idea." }]);
         }
     };
 
@@ -135,6 +278,7 @@ const Workspace = () => {
                     nodes,
                     edges,
                     chat_history: chatHistory,
+                    last_job_id: lastJobId
                 }),
                 credentials: 'include'
             });
@@ -380,105 +524,67 @@ const Workspace = () => {
 
     const [generationStatus, setGenerationStatus] = useState(null);
 
+    const pollJobStatus = async (jobId, onUpdate) => {
+        const poll = async () => {
+            try {
+                const res = await fetch(`/api/ai/job-status/${jobId}`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Failed to fetch job status');
+                const data = await res.json();
+
+                if (onUpdate) onUpdate(data);
+
+                if (data.state === 'completed') {
+                    return data.result;
+                } else if (data.state === 'failed') {
+                    throw new Error(data.failedReason || 'Job failed on server');
+                } else {
+                    // Poll again after 2 seconds
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return poll();
+                }
+            } catch (err) {
+                console.error('Polling error:', err);
+                throw err;
+            }
+        };
+        return poll();
+    };
+
     const handleGenerateProject = async () => {
         setIsGenerating(true);
         setGeneratedFiles(null);
-        setGenerationStatus('🧠 Planning your project architecture...');
+        setGenerationStatus('🧠 Enqueuing project generation...');
 
         const stackDescription = nodes.map(n => {
             const stepId = n.data.stepId;
             const selectedId = n.data.selectedOption;
-
-            // Try static first
             let opt = PIPELINE_STEPS.find(s => s.id === stepId)?.options.find(o => o.id === selectedId);
-
-            // If not found, try dynamic node data (the AI suggested path)
             if (!opt && n.data.bestPractice?.id === selectedId) opt = n.data.bestPractice;
             if (!opt && n.data.alternatives) opt = n.data.alternatives.find(a => a.id === selectedId);
-
             return `${n.data.title}: ${opt?.name || selectedId || 'None'}`;
         }).join(', ');
 
         const userIdea = chatHistory.find(msg => msg.role === 'user')?.content || 'a full-stack web application';
 
         try {
-            // ═══════════════════════════════════════════
-            // STEP 1: Get the file plan from AI
-            // ═══════════════════════════════════════════
-            const planRes = await fetch('/api/ai/generate-plan', {
+            const res = await fetch('/api/ai/enqueue-project', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ idea: userIdea, stack: stackDescription }),
                 credentials: 'include'
             });
 
-            if (!planRes.ok) {
-                const err = await planRes.json();
-                throw new Error(err.details || err.error || 'Plan generation failed');
-            }
+            if (!res.ok) throw new Error('Failed to enqueue project');
+            const { jobId } = await res.json();
 
-            const { plan } = await planRes.json();
+            setLastJobId(jobId);
 
-            if (!Array.isArray(plan) || plan.length === 0) {
-                throw new Error('AI returned an empty file plan');
-            }
+            // Auto-save before redirecting
+            await handleSaveWorkspace();
 
-            setGenerationStatus(`📋 Plan ready! Generating ${plan.length} files...`);
-
-            // Initialize the file tree structure
-            const projectTree = {
-                name: 'wirestack-generated-project',
-                children: []
-            };
-            setGeneratedFiles({ ...projectTree });
-
-            // ═══════════════════════════════════════════
-            // STEP 2: Generate each file one-by-one
-            // ═══════════════════════════════════════════
-            const generatedSoFar = [];
-
-            for (let i = 0; i < plan.length; i++) {
-                const file = plan[i];
-                setGenerationStatus(`⚡ Generating ${file.name} (${i + 1}/${plan.length})...`);
-
-                const fileRes = await fetch('/api/ai/generate-file', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        idea: userIdea,
-                        stack: stackDescription,
-                        fileName: file.name,
-                        filePurpose: file.purpose,
-                        existingFiles: generatedSoFar
-                    }),
-                    credentials: 'include'
-                });
-
-                if (!fileRes.ok) {
-                    const err = await fileRes.json();
-                    console.error(`Failed to generate ${file.name}:`, err);
-                    // Add a placeholder so the pipeline doesn't break
-                    generatedSoFar.push({ name: file.name, content: `// Error generating this file: ${err.details || err.error}` });
-                } else {
-                    const fileData = await fileRes.json();
-                    generatedSoFar.push(fileData);
-                }
-
-                // Live update the editor panel!
-                setGeneratedFiles({
-                    name: 'wirestack-generated-project',
-                    children: [...generatedSoFar]
-                });
-            }
-
-            setGenerationStatus(`✅ Done! ${generatedSoFar.length} files generated successfully.`);
-
-            // Notify chat
-            setChatHistory(prev => [...prev, {
-                role: 'assistant',
-                content: `🚀 Your project has been generated with ${generatedSoFar.length} files! Check the Editor panel to browse the code and preview your app.`
-            }]);
-
+            // Redirect to embedded full page editor
+            setActiveEditorJobId(jobId);
+            setIsEditorOpen(true);
         } catch (err) {
             console.error('Code gen error:', err);
             setGenerationStatus(`❌ Error: ${err.message}`);
@@ -497,73 +603,33 @@ const Workspace = () => {
 
         setIsGenerating(true);
         setGeneratedFiles(null);
-        setGenerationStatus('🧠 Planning boilerplate architecture...');
+        setGenerationStatus('🧠 Enqueuing boilerplate generation...');
 
-        // Extract labels from all dropped nodes
         const stackItems = nodes.map(n => n.type || n.data?.label || 'Unknown Node');
-
-        // Remove the default "-{number}" we append in onDrop, to get pure names
         const cleanStackItems = stackItems.map(item => item.split('-')[0].trim());
         const uniqueStack = [...new Set(cleanStackItems)].join(', ');
 
-        const boilerplateIdea = `Production-ready full-stack Boilerplate with SEPARATE frontend/ and backend/ directories. The frontend/ must have its own package.json and src/ folder with components. The backend/ must have its own package.json, src/ folder with routes/, controllers/, models/, config/, and middleware/ sub-directories. Include a root docker-compose.yml and README.md. Generate 12-18 files minimum.`;
+        const boilerplateIdea = `Production-ready full-stack Boilerplate with SEPARATE frontend/ and backend/ directories. Include docker-compose.yml and README.md. Generate 12-18 files.`;
 
         try {
-            // STEP 1: Plan
-            const planRes = await fetch('/api/ai/generate-plan', {
+            const res = await fetch('/api/ai/enqueue-project', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ idea: boilerplateIdea, stack: uniqueStack }),
                 credentials: 'include'
             });
 
-            if (!planRes.ok) throw new Error('Plan generation failed');
-            const { plan } = await planRes.json();
+            if (!res.ok) throw new Error('Failed to enqueue boilerplate');
+            const { jobId } = await res.json();
 
-            setGenerationStatus(`📋 Boilerplate Plan ready! Generating ${plan.length} initial files...`);
+            setLastJobId(jobId);
 
-            const projectTree = { name: 'developer-boilerplate', children: [] };
-            setGeneratedFiles({ ...projectTree });
+            // Auto-save before redirecting
+            await handleSaveWorkspace();
 
-            // STEP 2: Generate each file one by one (with delay to avoid rate limits)
-            const generatedSoFar = [];
-            for (let i = 0; i < plan.length; i++) {
-                const file = plan[i];
-                setGenerationStatus(`⚡ Generating ${file.name} (${i + 1}/${plan.length})...`);
-
-                // Add small delay between API calls to avoid rate limiting
-                if (i > 0) {
-                    await new Promise(r => setTimeout(r, 1500));
-                }
-
-                const fileRes = await fetch('/api/ai/generate-file', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        idea: boilerplateIdea,
-                        stack: uniqueStack,
-                        fileName: file.name,
-                        filePurpose: file.purpose,
-                        existingFiles: generatedSoFar
-                    }),
-                    credentials: 'include'
-                });
-
-                if (fileRes.ok) {
-                    const fileData = await fileRes.json();
-                    generatedSoFar.push(fileData);
-                } else {
-                    generatedSoFar.push({ name: file.name, content: `// Error generating file` });
-                }
-
-                setGeneratedFiles({
-                    name: 'developer-boilerplate',
-                    children: [...generatedSoFar]
-                });
-            }
-
-            setGenerationStatus(`✅ Boilerplate ready! Download the ZIP to start coding.`);
-
+            // Redirect to embedded full page editor
+            setActiveEditorJobId(jobId);
+            setIsEditorOpen(true);
         } catch (err) {
             console.error('Boilerplate gen error:', err);
             setGenerationStatus(`❌ Error: ${err.message}`);
@@ -702,9 +768,9 @@ const Workspace = () => {
     // ===== NON-DEVELOPER: 3-Panel Layout =====
     if (isNoCode) {
         return (
-            <div className="flex h-screen w-full bg-white font-mono overflow-hidden">
+            <div className="flex h-screen w-full bg-[#fafafa] font-mono overflow-hidden relative">
                 {/* Left Panel: AI Chat */}
-                <div className="w-[320px] shrink-0 border-r-4 border-black bg-[#FFD700] flex flex-col overflow-hidden">
+                <div className={`${isSidebarOpen ? 'w-[320px]' : 'w-0'} transition-all duration-300 shrink-0 border-r-4 border-black bg-[#FFD700] flex flex-col overflow-hidden`}>
                     {/* Mini navbar */}
                     <div className="px-4 py-3 border-b-4 border-black bg-black text-white flex items-center gap-2 shrink-0">
                         <div className="bg-[#FF3366] text-white font-black text-xs px-2 py-0.5">WS</div>
@@ -734,12 +800,22 @@ const Workspace = () => {
                                     <Settings size={10} className="text-gray-400 group-hover:text-black group-hover:rotate-90 transition-all" />
                                 </div>
                             </div>
-                            <button
-                                onClick={() => window.location.href = '/api/auth/logout'}
-                                className="p-1.5 border-2 border-black hover:bg-black hover:text-white transition-colors"
-                            >
-                                <ChevronLeft size={12} />
-                            </button>
+                            <div className="flex flex-col gap-1">
+                                <button
+                                    onClick={() => window.location.href = '/api/auth/logout'}
+                                    className="p-1 border-2 border-black hover:bg-black hover:text-white transition-colors"
+                                    title="Logout"
+                                >
+                                    <LogOut size={12} />
+                                </button>
+                                <button
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className="p-1 border-2 border-black hover:bg-[#FF3366] hover:text-white transition-colors"
+                                    title="Close Sidebar"
+                                >
+                                    <ChevronLeft size={12} />
+                                </button>
+                            </div>
                         </div>
                         {/* Workspace Count */}
                         <div className="mt-2 flex items-center gap-2 text-[10px] font-black uppercase text-gray-500">
@@ -759,10 +835,70 @@ const Workspace = () => {
                 </div>
 
                 {/* Center Panel: Canvas */}
-                <div className="flex-1 flex flex-col relative" ref={reactFlowWrapper}>
+                <div className="flex-1 flex flex-col relative bg-[#fafafa]" ref={reactFlowWrapper}>
                     {/* Top Navbar */}
-                    <header className="h-14 border-b-4 border-black bg-white flex items-center justify-between px-4 z-10 shrink-0">
-                        <h1 className="font-black text-lg uppercase tracking-tighter">Workflow / <span className="text-[#FF3366]">{activeWorkspace?.name || 'MyProject'}</span></h1>
+                    <header className="h-16 border-b-4 border-black bg-white flex items-center justify-between px-6 z-10 shrink-0">
+                        <div className="flex items-center gap-4">
+                            {!isSidebarOpen && (
+                                <button
+                                    onClick={() => setIsSidebarOpen(true)}
+                                    className="p-1 border-2 border-black hover:bg-[#FFD700] transition-colors"
+                                    title="Open Sidebar"
+                                >
+                                    <ChevronRight size={16} />
+                                </button>
+                            )}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowProjectMenu(!showProjectMenu)}
+                                    className="flex items-center gap-2 font-black text-xl uppercase tracking-tighter hover:text-[#FF3366] transition-colors"
+                                >
+                                    <span className="text-gray-400">WORKFLOW /</span>
+                                    <span className="text-[#FF3366]">{activeWorkspace?.name || 'Project-7'}</span>
+                                    <ChevronRight size={16} className={`transition-transform ${showProjectMenu ? 'rotate-90' : ''}`} />
+                                </button>
+
+                                {showProjectMenu && (
+                                    <div className="absolute top-full left-0 mt-2 bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] min-w-[280px] z-[100]">
+                                        <button
+                                            onClick={async () => {
+                                                await handleCreateWorkspace();
+                                                setShowProjectMenu(false);
+                                            }}
+                                            className="w-full flex items-center gap-2 px-4 py-4 font-black text-sm uppercase bg-[#33FF66] hover:bg-black hover:text-white border-b-4 border-black transition-all"
+                                        >
+                                            <Plus size={18} /> NEW MISSION
+                                        </button>
+                                        <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                                            {workspaces.map((ws) => (
+                                                <div
+                                                    key={ws._id}
+                                                    className={`group w-full flex items-center justify-between px-4 py-3 border-b-2 border-gray-100 hover:bg-gray-50 transition-colors ${activeWorkspace?._id === ws._id ? 'bg-[#FFD700]/20' : ''}`}
+                                                >
+                                                    <button
+                                                        onClick={() => {
+                                                            handleSelectWorkspace(ws);
+                                                            setShowProjectMenu(false);
+                                                        }}
+                                                        className="flex-1 flex items-center gap-3 font-bold text-sm text-left truncate"
+                                                    >
+                                                        <FolderOpen size={16} className={activeWorkspace?._id === ws._id ? 'text-[#FF3366]' : 'text-gray-400'} />
+                                                        <span className="truncate">{ws.name}</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleDeleteWorkspace(e, ws._id)}
+                                                        className="p-1.5 text-gray-400 hover:text-[#FF3366] hover:bg-[#FF3366]/10 rounded transition-all opacity-0 group-hover:opacity-100"
+                                                        title="Delete Project"
+                                                    >
+                                                        <Trash size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={handleCreateWorkspace}
@@ -772,12 +908,12 @@ const Workspace = () => {
                             </button>
                             {allCompleted && (
                                 <button
-                                    onClick={handleGenerateProject}
+                                    onClick={() => lastJobId ? window.dispatchEvent(new CustomEvent('open-code-editor')) : handleGenerateProject()}
                                     disabled={isGenerating}
                                     className="flex items-center gap-2 px-6 py-1.5 border-3 border-black bg-[#FFD700] font-black text-xs uppercase shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-75 animate-bounce"
                                 >
-                                    {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                    Generate Final Code
+                                    {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : (lastJobId ? <Code2 className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />)}
+                                    {lastJobId ? "View Code" : "Generate Final Code"}
                                 </button>
                             )}
                         </div>
@@ -833,10 +969,22 @@ const Workspace = () => {
                     </div>
                 </div>
 
-                {/* Right Panel: Code Editor */}
-                <div className="w-[350px] shrink-0">
-                    <EditorPanel files={generatedFiles} generationStatus={generationStatus} />
-                </div>
+                {/* Right Panel: Embedded Editor */}
+                {isEditorOpen && activeEditorJobId && (
+                    <div
+                        className="relative z-40 flex shrink-0 border-l-4 border-black bg-white shadow-[-10px_0px_50px_rgba(0,0,0,0.1)]"
+                        style={{ width: `${Math.max(400, panelWidth)}px` }}
+                    >
+                        {/* Resizer Handle */}
+                        <div
+                            onMouseDown={handleMouseDown}
+                            className={`absolute left-[-4px] top-0 bottom-0 w-2 cursor-col-resize z-50 hover:bg-[#00F0FF]/50 transition-colors ${isDragging ? 'bg-[#00F0FF]' : ''}`}
+                        />
+                        <div className="flex-1 w-full h-full relative">
+                            <ProjectView embeddedJobId={activeEditorJobId} onClose={() => setIsEditorOpen(false)} />
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -877,6 +1025,15 @@ const Workspace = () => {
             {/* ===== TOP NAVBAR (full width) ===== */}
             <header className="h-14 border-b-4 border-black bg-white flex items-center justify-between px-4 z-30 shrink-0">
                 <div className="flex items-center gap-3">
+                    {!isSidebarOpen && (
+                        <button
+                            onClick={() => setIsSidebarOpen(true)}
+                            className="p-1.5 border-2 border-black bg-[#FFD700] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                            title="Open Sidebar"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    )}
                     <div className="bg-black text-white p-1 font-black text-lg px-2 border-2 border-black">WS</div>
 
                     {/* Project Selector */}
@@ -909,21 +1066,30 @@ const Workspace = () => {
                                 </button>
 
                                 {/* Existing Projects */}
-                                <div className="max-h-[200px] overflow-y-auto">
+                                <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
                                     {workspaces.map((ws) => (
-                                        <button
+                                        <div
                                             key={ws._id}
-                                            onClick={() => {
-                                                handleSelectWorkspace(ws);
-                                                setGeneratedFiles(null);
-                                                setShowProjectMenu(false);
-                                            }}
-                                            className={`w-full flex items-center gap-2 px-4 py-2.5 font-bold text-sm text-left hover:bg-gray-100 border-b border-gray-200 transition-colors ${activeWorkspace?._id === ws._id ? 'bg-[#FFD700]/30 text-black' : 'text-gray-700'
-                                                }`}
+                                            className={`group w-full flex items-center justify-between px-4 py-2.5 border-b border-gray-100 hover:bg-gray-50 transition-colors ${activeWorkspace?._id === ws._id ? 'bg-[#FFD700]/20' : ''}`}
                                         >
-                                            <FolderOpen size={14} />
-                                            {ws.name}
-                                        </button>
+                                            <button
+                                                onClick={() => {
+                                                    handleSelectWorkspace(ws);
+                                                    setShowProjectMenu(false);
+                                                }}
+                                                className="flex-1 flex items-center gap-2 font-bold text-sm text-left truncate"
+                                            >
+                                                <FolderOpen size={14} className={activeWorkspace?._id === ws._id ? 'text-[#FF3366]' : 'text-gray-400'} />
+                                                <span className="truncate">{ws.name}</span>
+                                            </button>
+                                            <button
+                                                onClick={(e) => handleDeleteWorkspace(e, ws._id)}
+                                                className="p-1 text-gray-400 hover:text-[#FF3366] hover:bg-[#FF3366]/10 rounded transition-all opacity-0 group-hover:opacity-100"
+                                                title="Delete Project"
+                                            >
+                                                <Trash size={12} />
+                                            </button>
+                                        </div>
                                     ))}
                                     {workspaces.length === 0 && (
                                         <p className="px-4 py-3 text-xs text-gray-400 font-bold">No projects yet. Create one!</p>
@@ -1027,19 +1193,19 @@ const Workspace = () => {
 
                     {/* User Avatar + Logout */}
                     {user && (
-                        <div className="flex items-center gap-2 ml-2 border-l-2 border-gray-300 pl-3">
-                            <div className="w-8 h-8 border-2 border-black bg-[#00F0FF] overflow-hidden shrink-0">
+                        <div className="flex items-center gap-2 ml-2 border-l-2 border-gray-700 pl-3">
+                            <div className="w-8 h-8 border-2 border-[#0f0f1a] bg-[#00F0FF] overflow-hidden shrink-0">
                                 {user.profile_picture ? (
                                     <img src={user.profile_picture} alt="" className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center font-black text-sm">
+                                    <div className="w-full h-full flex items-center justify-center font-black text-sm text-black">
                                         {user.first_name?.[0]}
                                     </div>
                                 )}
                             </div>
                             <button
                                 onClick={() => window.location.href = '/api/auth/logout'}
-                                className="p-1 border-2 border-black hover:bg-black hover:text-white transition-colors"
+                                className="p-1 border-2 border-[#0f0f1a] hover:bg-[#0f0f1a] hover:text-white transition-colors text-gray-300"
                                 title="Logout"
                             >
                                 <LogOut size={14} />
@@ -1053,12 +1219,12 @@ const Workspace = () => {
             <div className="flex-1 flex overflow-hidden" ref={reactFlowWrapper}>
 
                 {/* LEFT: Tech Sidebar */}
-                <div className={`${isSidebarOpen ? 'w-52' : 'w-0'} transition-all duration-300 border-r-4 border-black bg-[#FFD700] relative overflow-hidden flex flex-col shrink-0 z-20`}>
-                    <div className="p-3 border-b-3 border-black bg-black/10">
-                        <h2 className="font-black text-sm uppercase tracking-wider flex items-center gap-2">
-                            <Box size={14} /> TECH STACK
+                <div className={`${isSidebarOpen ? 'w-[280px]' : 'w-0'} transition-all duration-300 border-r-4 border-black bg-[#FFD700] relative overflow-hidden flex flex-col shrink-0 z-20`}>
+                    <div className="p-4 border-b-4 border-black bg-black/5">
+                        <h2 className="font-black text-sm uppercase tracking-wider flex items-center gap-2 text-black">
+                            <Box size={16} /> BUILDER TOOLS
                         </h2>
-                        <p className="text-[10px] font-bold text-gray-700 mt-0.5">Drag to canvas →</p>
+                        <p className="text-[10px] font-black text-black/60 mt-0.5">DRAG & DROP TO CANVAS</p>
                     </div>
                     <Sidebar
                         user={user}
@@ -1073,14 +1239,6 @@ const Workspace = () => {
                     />
                 </div>
 
-                {/* Toggle Sidebar Button */}
-                <button
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="absolute top-1/2 -translate-y-1/2 z-50 bg-white border-3 border-black p-0.5 hover:bg-black hover:text-white transition-all duration-300"
-                    style={{ left: isSidebarOpen ? '206px' : '0px', top: '50%' }}
-                >
-                    {isSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-                </button>
 
                 {/* CENTER: ReactFlow Canvas */}
                 <div className="flex-1 relative">
@@ -1120,10 +1278,21 @@ const Workspace = () => {
                     )}
                 </div>
 
-                {/* RIGHT: Editor Panel (slides in when files generated) */}
-                {(generatedFiles || isGenerating) && (
-                    <div className="w-[380px] shrink-0 border-l-4 border-black bg-[#1a1a2e] relative z-40 flex flex-col">
-                        <EditorPanel files={generatedFiles} generationStatus={generationStatus} />
+                {/* RIGHT: Editor Panel (Resizable) */}
+                {isEditorOpen && activeEditorJobId && (
+                    <div
+                        className="relative z-40 flex shrink-0"
+                        style={{ width: `${Math.max(400, panelWidth)}px` }}
+                    >
+                        {/* Resizer Handle */}
+                        <div
+                            onMouseDown={handleMouseDown}
+                            className={`absolute left-[-4px] top-0 bottom-0 w-2 cursor-col-resize z-50 hover:bg-[#00F0FF]/50 transition-colors ${isDragging ? 'bg-[#00F0FF]' : ''}`}
+                        />
+
+                        <div className="flex-1 border-l-4 border-black bg-white flex flex-col shadow-[-10px_0px_50px_rgba(0,0,0,0.1)] relative">
+                            <ProjectView embeddedJobId={activeEditorJobId} onClose={() => setIsEditorOpen(false)} />
+                        </div>
                     </div>
                 )}
             </div>

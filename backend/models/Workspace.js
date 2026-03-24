@@ -23,6 +23,10 @@ const workspaceSchema = new mongoose.Schema({
         type: Array,
         default: []
     },
+    last_job_id: {
+        type: String,
+        default: null
+    },
     created_at: {
         type: Date,
         default: Date.now

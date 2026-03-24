@@ -84,9 +84,9 @@ const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, on
     };
 
     const UserSection = () => (
-        <div className="p-4 border-4 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <h2 className="text-sm font-black uppercase tracking-tighter border-b-2 border-black pb-2 mb-4 flex items-center gap-2 text-[#FF3366]">
-                <UserIcon className="w-4 h-4" /> ME
+        <div className="p-4 border-4 border-black bg-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <h2 className="text-[11px] font-black uppercase tracking-widest border-b-2 border-black pb-2 mb-4 flex items-center gap-2 text-[#FF3366]">
+                <UserIcon className="w-4 h-4" /> AUTH
             </h2>
 
             {user ? (
@@ -108,7 +108,7 @@ const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, on
                         onClick={() => window.location.href = '/api/auth/logout'}
                         className="p-1 border-2 border-black hover:bg-black hover:text-white transition-colors"
                     >
-                        <LogOut size={14} />
+                        <LogOut size={16} />
                     </button>
                 </div>
             ) : (
@@ -125,26 +125,22 @@ const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, on
         // Compact mode: just the tech tiles, no profile/header
         if (compact) {
             return (
-                <aside className="h-full flex flex-col overflow-y-auto p-2">
-                    <div className="space-y-2">
-                        {nodeTypes.map((node) => (
-                            <div
-                                key={node.id}
-                                className={`cursor-grab p-2 border-3 border-black ${node.color} ${node.textColor || 'text-black'} shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all`}
-                                onDragStart={(event) => onDragStart(event, node.id)}
-                                draggable
-                            >
-                                <div className="flex items-center gap-2">
-                                    <div className="bg-white p-1 border-2 border-black text-black shrink-0">
-                                        {React.cloneElement(node.icon, { className: 'w-4 h-4' })}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <h3 className="font-black text-xs uppercase truncate">{node.label}</h3>
-                                    </div>
+                <aside className="h-full flex flex-col overflow-y-auto p-3 scrollbar-hide space-y-3">
+                    {nodeTypes.map((node) => (
+                        <div
+                            key={node.id}
+                            className={`cursor-grab p-2.5 bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all group`}
+                            onDragStart={(event) => onDragStart(event, node.id)}
+                            draggable
+                            title={node.label}
+                        >
+                            <div className="flex items-center justify-center relative">
+                                <div className={`p-2 border-2 border-black text-black group-hover:bg-[#00F0FF]`}>
+                                    {React.cloneElement(node.icon, { size: 18 })}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        </div>
+                    ))}
                 </aside>
             );
         }
@@ -207,18 +203,18 @@ const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, on
             </div>
 
             {/* Tab Buttons */}
-            <div className="flex border-y-4 border-black shrink-0">
+            <div className="flex border-y-4 border-black shrink-0 bg-white">
                 <button
                     onClick={() => setActiveTab('workspaces')}
-                    className={`flex-1 py-3 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors border-r-2 border-black ${activeTab === 'workspaces' ? 'bg-[#00F0FF] text-black' : 'bg-white hover:bg-gray-100'}`}
+                    className={`flex-1 py-4 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border-r-4 border-black ${activeTab === 'workspaces' ? 'bg-[#00F0FF] text-black' : 'hover:bg-gray-100'}`}
                 >
-                    <FolderOpen size={14} /> Workspaces
+                    <FolderOpen size={16} /> FILES
                 </button>
                 <button
                     onClick={() => setActiveTab('chat')}
-                    className={`flex-1 py-3 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'chat' ? 'bg-[#FFD700] text-black' : 'bg-white hover:bg-gray-100'}`}
+                    className={`flex-1 py-4 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${activeTab === 'chat' ? 'bg-[#FFD700] text-black' : 'hover:bg-gray-100'}`}
                 >
-                    <MessageSquare size={14} /> AI Chat
+                    <MessageSquare size={16} /> CHAT
                 </button>
             </div>
 
@@ -227,11 +223,15 @@ const Sidebar = ({ user, workspaces = [], activeWorkspace, onCreateWorkspace, on
                 {activeTab === 'workspaces' ? (
                     <div className="h-full overflow-y-auto p-4 space-y-4">
                         {/* New Workspace Button */}
+                        {/* New Workspace Button */}
                         <button
                             onClick={onCreateWorkspace}
-                            className="w-full p-4 border-4 border-black bg-[#33FF66] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all flex items-center gap-3 font-black text-sm uppercase"
+                            className="w-full p-4 border-4 border-black bg-[#33FF66] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all flex items-center gap-3 font-black text-sm uppercase"
                         >
-                            <Plus className="w-5 h-5" /> New Workspace
+                            <div className="p-2 bg-white border-2 border-black">
+                                <Plus className="w-5 h-5" />
+                            </div>
+                            NEW PROJECTS
                         </button>
 
                         {/* Recent Workspaces */}

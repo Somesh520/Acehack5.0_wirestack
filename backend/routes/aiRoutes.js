@@ -4,6 +4,10 @@ const Groq = require('groq-sdk');
 const archiver = require('archiver');
 const router = express.Router();
 
+const { callLLM, sleep } = require('../utils/aiUtils');
+const { generationQueue } = require('../config/queue');
+const { uploadProjectToS3, fetchProjectFromS3 } = require('../utils/s3Utils');
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -20,19 +24,22 @@ Output your system design in this format:
 [
   {
     "id": "frontend",
+    "category": "frontend",
     "title": "Frontend",
-    "best_practice": { "id": "react", "name": "React", "reason": "Industry standard for web apps with 10M+ devs." },
+    "best_practice": { "id": "react", "name": "React", "reason": "Industry standard for web apps with massive ecosystem." },
     "alternatives": [
       { "id": "vue", "name": "Vue.js", "reason": "Better for beginners due to simpler syntax." },
-      { "id": "nextjs", "name": "Next.js", "reason": "Best for SEO and high-performance e-commerce." }
+      { "id": "nextjs", "name": "Next.js", "reason": "Best for SEO and high-performance routing." }
     ]
   },
   {
     "id": "backend",
+    "category": "backend",
     "title": "Backend",
-    "best_practice": { "id": "express", "name": "Express.js", "reason": "Lightweight and standard for Node.js." },
+    "best_practice": { "id": "express", "name": "Express.js", "reason": "Lightweight and universal standard for Node.js." },
     "alternatives": [
-      { "id": "nestjs", "name": "NestJS", "reason": "Better for large enterprise teams with TypeScript." }
+      { "id": "nestjs", "name": "NestJS", "reason": "Better for large enterprise teams with TypeScript." },
+      { "id": "fastapi", "name": "FastAPI (Python)", "reason": "Superior performance and auto-documentation." }
     ]
   }
 ]
@@ -86,11 +93,12 @@ router.post('/chat', async (req, res) => {
     ];
 
     const modelsToTry = [
+        { provider: 'nvidia', modelId: 'minimaxai/minimax-m2.5', engineName: 'NVIDIA (Minimax M2.5)' },
         { provider: 'groq', modelId: 'llama-3.3-70b-versatile', engineName: 'Groq (Llama 3.3 70B)' },
-        { provider: 'groq', modelId: 'llama-3.1-8b-instant', engineName: 'Groq (Llama 3.1 8B)' }, // Valid Groq fallback
-        { provider: 'gemini', modelId: 'gemini-2.5-flash', engineName: 'Gemini (2.5 Flash)' }, // Very Latest Gemini
-        { provider: 'gemini', modelId: 'gemini-1.5-flash', engineName: 'Gemini (1.5 Flash)' }, // Valid API name
-        { provider: 'gemini', modelId: 'gemini-1.5-pro', engineName: 'Gemini (1.5 Pro)' }      // Valid API name
+        { provider: 'groq', modelId: 'llama-3.1-8b-instant', engineName: 'Groq (Llama 3.1 8B)' },
+        { provider: 'gemini', modelId: 'gemini-2.5-flash', engineName: 'Gemini (2.5 Flash)' },
+        { provider: 'gemini', modelId: 'gemini-1.5-flash', engineName: 'Gemini (1.5 Flash)' },
+        { provider: 'gemini', modelId: 'gemini-1.5-pro', engineName: 'Gemini (1.5 Pro)' }
     ];
 
     let lastError = null;
@@ -156,68 +164,7 @@ router.post('/chat', async (req, res) => {
 // SEQUENTIAL CODE GENERATION PIPELINE
 // ============================================================
 
-// Helper: sleep for ms milliseconds
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Helper: call Gemini or Groq with retry logic and exponential backoff
-async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2, preferredModel = null) {
-    const modelsToTry = [
-        { provider: 'groq', modelId: 'llama-3.3-70b-versatile', engineName: 'Groq (Llama 3.3 70B)' },
-        { provider: 'groq', modelId: 'llama-3.1-8b-instant', engineName: 'Groq (Llama 3.1 8B)' },
-        { provider: 'gemini', modelId: 'gemini-2.5-flash', engineName: 'Gemini (2.5 Flash)' },
-        { provider: 'gemini', modelId: 'gemini-1.5-flash', engineName: 'Gemini (1.5 Flash)' },
-        { provider: 'gemini', modelId: 'gemini-1.5-pro', engineName: 'Gemini (1.5 Pro)' }
-    ];
-
-    let lastError = null;
-
-    for (let attempt = 1; attempt <= retries; attempt++) {
-        for (const modelOpt of modelsToTry) {
-            // Respect preferredModel if provided (e.g., forcing groq or gemini)
-            if (preferredModel && preferredModel !== modelOpt.provider) continue;
-
-            try {
-                if (modelOpt.provider === 'groq' && process.env.GROQ_API_KEY) {
-                    const chatCompletion = await groq.chat.completions.create({
-                        messages: [
-                            { role: 'system', content: systemPrompt },
-                            { role: 'user', content: userMessage }
-                        ],
-                        model: modelOpt.modelId,
-                        temperature: 0.7,
-                        max_tokens: maxTokens,
-                    });
-                    const reply = chatCompletion.choices[0]?.message?.content;
-                    if (reply) return reply;
-
-                } else if (modelOpt.provider === 'gemini' && process.env.GEMINI_API_KEY) {
-                    const model = genAI.getGenerativeModel({
-                        model: modelOpt.modelId,
-                        systemInstruction: systemPrompt,
-                        generationConfig: { maxOutputTokens: maxTokens },
-                    });
-
-                    // Note: Using generateContent for generic tasks (no chat history here)
-                    const result = await model.generateContent(userMessage);
-                    const reply = result.response.text();
-                    if (reply) return reply;
-                }
-            } catch (err) {
-                console.warn(`⚠️ ${modelOpt.engineName} failed (attempt ${attempt}/${retries}):`, err.message);
-                lastError = err;
-            }
-        }
-
-        // Wait before retrying (exponential backoff: 2s, 4s)
-        if (attempt < retries) {
-            const delay = Math.pow(2, attempt) * 1000;
-            console.log(`⏳ Retrying all models in ${delay / 1000}s...`);
-            await sleep(delay);
-        }
-    }
-
-    throw lastError || new Error('No AI providers available after trying all fallbacks');
-}
+// callLLM and sleep are now imported from ../utils/aiUtils.js
 
 // STEP 1: Generate the file plan (tiny JSON)
 router.post('/generate-plan', async (req, res) => {
@@ -425,18 +372,178 @@ Return ONLY the raw file content, nothing else.`;
     }
 });
 
+
+
+router.post('/enqueue-project', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { idea, stack } = req.body;
+    if (!idea || !stack) {
+        return res.status(400).json({ error: 'idea and stack are required' });
+    }
+
+    try {
+        const job = await generationQueue.add('project-generation', {
+            idea,
+            stack,
+            type: 'project'
+        });
+
+        res.json({ jobId: job.id });
+    } catch (err) {
+        console.error('❌ Job enqueue error:', err.message);
+        res.status(500).json({ error: 'Failed to queue project generation', details: err.message });
+    }
+});
+
+router.get('/job-status/:id', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const job = await generationQueue.getJob(req.params.id);
+
+        // If job not found in Redis, try S3 fallback
+        if (!job) {
+            console.log(`[JOB-STATUS] Job ${req.params.id} not in Redis, trying S3 fallback...`);
+            try {
+                const s3Files = await fetchProjectFromS3(req.params.id);
+                if (s3Files && s3Files.length > 0) {
+                    return res.json({
+                        id: req.params.id,
+                        state: 'completed',
+                        progress: 100,
+                        result: { files: s3Files, s3Folder: `projects/${req.params.id}/` },
+                        failedReason: null,
+                        files: s3Files,
+                        s3Folder: `projects/${req.params.id}/`
+                    });
+                }
+            } catch (s3Err) {
+                console.warn(`[JOB-STATUS] S3 fallback failed for ${req.params.id}:`, s3Err.message);
+            }
+            return res.status(404).json({ error: 'Job not found' });
+        }
+
+        const state = await job.getState();
+        const progress = job.progress;
+        const result = job.returnvalue;
+        const failedReason = job.failedReason;
+
+        // Current files generated so far (from job data update)
+        let currentFiles = job.data.generatedFiles || [];
+
+        // If job completed but files are empty, try S3 fallback
+        if (state === 'completed' && currentFiles.length === 0 && (!result?.files || result.files.length === 0)) {
+            console.log(`[JOB-STATUS] Job ${req.params.id} completed but no files in Redis, trying S3...`);
+            try {
+                const s3Files = await fetchProjectFromS3(req.params.id);
+                if (s3Files && s3Files.length > 0) {
+                    currentFiles = s3Files;
+                }
+            } catch (s3Err) {
+                console.warn(`[JOB-STATUS] S3 fallback failed:`, s3Err.message);
+            }
+        }
+
+        res.json({
+            id: job.id,
+            state,
+            progress,
+            result: result || (currentFiles.length > 0 ? { files: currentFiles, s3Folder: `projects/${req.params.id}/` } : null),
+            failedReason,
+            files: currentFiles.length > 0 ? currentFiles : (result?.files || []),
+            s3Folder: result?.s3Folder || null
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch job status', details: err.message });
+    }
+});
+
+// Fetch project files directly from S3 (for persisted projects after refresh)
+router.get('/fetch-project/:jobId', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const { jobId } = req.params;
+        console.log(`[S3-FETCH] Fetching project from S3 for job: ${jobId}`);
+        const files = await fetchProjectFromS3(jobId);
+
+        if (!files || files.length === 0) {
+            return res.status(404).json({ error: 'No files found in S3 for this job' });
+        }
+
+        console.log(`[S3-FETCH] Found ${files.length} files for job ${jobId}`);
+        res.json({
+            id: jobId,
+            state: 'completed',
+            progress: 100,
+            files,
+            result: { files, s3Folder: `projects/${jobId}/` },
+            s3Folder: `projects/${jobId}/`
+        });
+    } catch (err) {
+        console.error('[S3-FETCH] Error:', err.message);
+        res.status(500).json({ error: 'Failed to fetch project from S3', details: err.message });
+    }
+});
+
+// Save edited project files back to S3
+router.post('/save-project/:jobId', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const { jobId } = req.params;
+        const { files } = req.body;
+
+        if (!files || !Array.isArray(files)) {
+            return res.status(400).json({ error: 'Valid files array is required' });
+        }
+
+        console.log(`[S3-SAVE] Saving ${files.length} edited files to S3 for job: ${jobId}`);
+        const s3Urls = await uploadProjectToS3(jobId, files);
+
+        res.json({ message: 'Saved successfully', urls: s3Urls });
+    } catch (err) {
+        console.error('[S3-SAVE] Error:', err.message);
+        res.status(500).json({ error: 'Failed to save project to S3', details: err.message });
+    }
+});
+
+// STEP 3: Download the generated project as a ZIP file
 // STEP 3: Download the generated project as a ZIP file
 router.post('/download', async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { files } = req.body;
-    if (!files || !Array.isArray(files)) {
-        return res.status(400).json({ error: 'files array is required' });
-    }
+    let { files, jobId } = req.body;
 
     try {
+        // If jobId is provided, try to fetch from S3 first for persistence
+        if (jobId && (!files || files.length === 0)) {
+            console.log(`[DOWNLOAD] Fetching project from S3 for job: ${jobId}`);
+            try {
+                const s3Files = await fetchProjectFromS3(jobId);
+                if (s3Files && s3Files.length > 0) {
+                    files = s3Files;
+                }
+            } catch (err) {
+                console.warn(`[DOWNLOAD] S3 fetch failed for ${jobId}, falling back to request body:`, err.message);
+            }
+        }
+
+        if (!files || !Array.isArray(files) || files.length === 0) {
+            return res.status(400).json({ error: 'files array or valid jobId is required' });
+        }
+
         res.setHeader('Content-Type', 'application/zip');
         res.setHeader('Content-Disposition', 'attachment; filename="wirestack-project.zip"');
 
@@ -458,6 +565,7 @@ router.post('/download', async (req, res) => {
         });
 
         await archive.finalize();
+
     } catch (err) {
         console.error('❌ Error generating zip:', err.message);
         if (!res.headersSent) {
@@ -881,5 +989,60 @@ ${fileContents.map(f => `\n--- ${f.name} ---\n${f.content}`).join('\n')}`;
     }
 });
 
-module.exports = router;
+// ============================================================
+// SANDBOX DEPLOYMENT: Deploy AI-generated projects to AWS Fargate
+// ============================================================
+const { deploySandbox, getSandboxStatus, stopSandbox } = require('../utils/deployUtils');
 
+// Deploy a sandbox for a generated project
+router.post('/deploy-sandbox', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { jobId } = req.body;
+    if (!jobId) {
+        return res.status(400).json({ error: 'jobId is required' });
+    }
+
+    try {
+        console.log(`🚀 [SANDBOX] Deploy requested for job: ${jobId}`);
+        const result = await deploySandbox(jobId);
+        res.json(result);
+    } catch (err) {
+        console.error('❌ Sandbox deploy error:', err.message);
+        res.status(500).json({ error: 'Failed to deploy sandbox', details: err.message });
+    }
+});
+
+// Get sandbox deployment status + live URL
+router.get('/sandbox-status/:jobId', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const status = await getSandboxStatus(req.params.jobId);
+        res.json(status);
+    } catch (err) {
+        console.error('❌ Sandbox status error:', err.message);
+        res.status(500).json({ error: 'Failed to check sandbox status', details: err.message });
+    }
+});
+
+// Stop a running sandbox
+router.delete('/sandbox/:jobId', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const result = await stopSandbox(req.params.jobId);
+        res.json(result);
+    } catch (err) {
+        console.error('❌ Sandbox stop error:', err.message);
+        res.status(500).json({ error: 'Failed to stop sandbox', details: err.message });
+    }
+});
+
+module.exports = router;

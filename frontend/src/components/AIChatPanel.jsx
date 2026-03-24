@@ -95,37 +95,75 @@ const AIChatPanel = ({ onSuggestSystemDesign, messages = [], setMessages = () =>
                 <div className={`w-8 h-8 shrink-0 border-2 border-black flex items-center justify-center ${isBot ? 'bg-[#FFD700]' : 'bg-[#00F0FF]'}`}>
                     {isBot ? <Bot size={16} /> : <User size={16} />}
                 </div>
-                <div className={`flex-1 min-w-0 ${isBot ? '' : 'text-right'}`}>
-                    <div className={`inline-block text-left p-3 border-2 border-black text-xs font-bold leading-relaxed ${isBot ? 'bg-white' : 'bg-[#FFD700]'}`}>
+                <div className={`flex-1 min-w-0 ${isBot ? '' : 'flex flex-col items-end'}`}>
+                    <div className={`inline-block text-left p-4 border-4 border-black text-xs font-black leading-relaxed shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${isBot ? 'bg-white' : 'bg-[#FFD700]'}`}>
                         {msg.thoughtProcess && (
-                            <div className="mb-3 p-2 bg-gray-100 border border-gray-300 rounded text-[10px] text-gray-500 font-mono">
-                                <span className="block font-black text-gray-700 mb-1 border-b border-gray-300 pb-1">🧠 AGENT THOUGHT PROCESS</span>
+                            <div className="mb-4 p-3 bg-gray-100 border-2 border-black rounded-none text-[10px] text-gray-600 font-mono">
+                                <div className="flex items-center gap-2 font-black text-black mb-2 uppercase tracking-tighter border-b-2 border-black pb-1">
+                                    <Sparkles size={12} /> Thought Process
+                                </div>
                                 {msg.thoughtProcess}
                             </div>
                         )}
-                        {cleanText.split('\n').map((line, i) => (
-                            <p key={i} className="mb-1">{line.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')}</p>
-                        ))}
-                    </div>
-                    {design && (
-                        <div className="mt-2 space-y-1">
-                            {design.map((level, li) => (
-                                <div key={li} className="p-2 border-2 border-black bg-white text-[10px] font-black flex flex-col gap-1">
-                                    <div className="flex items-center gap-2 text-gray-400">
-                                        <Zap size={10} />
-                                        <span>LEVEL {li + 1}: {level.title}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="bg-[#33FF66] text-black px-1.5 py-0.5 border border-black uppercase">
-                                            {level.best_practice.name}
-                                        </div>
-                                        <span className="font-bold whitespace-nowrap">— BEST PRACTICE</span>
-                                    </div>
-                                    <p className="font-bold text-gray-500 italic mt-0.5">{level.best_practice.reason}</p>
-                                </div>
+                        <div className="space-y-2">
+                            {cleanText.split('\n').map((line, i) => (
+                                <p key={i}>{line.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')}</p>
                             ))}
                         </div>
-                    )}
+
+                        {/* Rendering System Design Alternatives */}
+                        {design && Array.isArray(design) && (
+                            <div className="mt-6 space-y-4">
+                                {design.map((level, li) => (
+                                    <div key={li} className="p-4 border-4 border-black bg-gray-50 flex flex-col gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                        <div className="flex items-center justify-between border-b-2 border-black pb-2">
+                                            <div className="flex items-center gap-2 text-black font-black uppercase tracking-widest text-[11px]">
+                                                <Zap size={14} className="text-[#00F0FF] fill-[#00F0FF]" />
+                                                <span>{level.title || level.category || 'Architecture Layer'}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2 text-[10px]">
+                                            {/* Render Best Practice/Primary Choice */}
+                                            {level.best_practice && (
+                                                <div className="flex p-2 border-2 border-black bg-[#33FF66]/20">
+                                                    <div className="w-1/3 font-black text-[#008000] uppercase tracking-tighter">🏆 Best Choice:</div>
+                                                    <div className="w-2/3 ml-2">
+                                                        <span className="font-bold bg-white px-1 whitespace-nowrap">{level.best_practice.name || level.best_practice}</span>
+                                                        <p className="mt-1 text-gray-700 italic">{level.best_practice.reason || level.reason || ''}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Render Alternatives */}
+                                            {level.alternatives && Array.isArray(level.alternatives) && level.alternatives.length > 0 && (
+                                                <div className="flex p-2 border-2 border-black bg-white">
+                                                    <div className="w-1/3 font-black text-[#FF3366] uppercase tracking-tighter">🔄 Alternatives:</div>
+                                                    <div className="w-2/3 ml-2 flex flex-wrap gap-1">
+                                                        {level.alternatives.map((alt, ai) => (
+                                                            <span key={ai} className="px-1.5 py-0.5 border border-black bg-gray-100 font-bold whitespace-nowrap">
+                                                                {typeof alt === 'string' ? alt : alt.name}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Fallback rendering for older/simpler formats */}
+                                            {!level.best_practice && !level.alternatives && level.name && (
+                                                <div className="p-2 border-2 border-black bg-white font-bold">
+                                                    {level.name} - {level.reason || 'Component suggested by AI.'}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                                <div className="mt-2 text-[9px] text-[#FF3366] font-black uppercase tracking-widest text-center animate-pulse">
+                                    Click elements on canvas to customize further!
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         );
@@ -134,9 +172,11 @@ const AIChatPanel = ({ onSuggestSystemDesign, messages = [], setMessages = () =>
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="p-3 border-b-4 border-black bg-[#FFD700] flex items-center gap-2">
-                <Sparkles className="w-5 h-5" />
-                <h3 className="font-black text-sm uppercase tracking-wider">AI Assistant</h3>
+            <div className="h-14 px-4 border-b-4 border-black bg-[#FFD700] flex items-center gap-3">
+                <div className="p-1.5 bg-white border-2 border-black">
+                    <Sparkles size={18} className="text-black" />
+                </div>
+                <h3 className="font-black text-sm uppercase tracking-tighter">AI Mission Command</h3>
             </div>
 
             {/* Messages */}
@@ -160,22 +200,22 @@ const AIChatPanel = ({ onSuggestSystemDesign, messages = [], setMessages = () =>
             </div>
 
             {/* Input */}
-            <div className="p-3 border-t-4 border-black bg-white">
+            <div className="p-4 border-t-4 border-black bg-white">
                 <div className="flex gap-2">
                     <input
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                        placeholder="Describe your app idea..."
-                        className="flex-1 p-2 border-2 border-black text-xs font-bold placeholder:text-gray-400 focus:outline-none focus:border-[#FFD700]"
+                        placeholder="Type mission details..."
+                        className="flex-1 px-4 py-3 bg-white border-4 border-black text-xs font-black placeholder:text-gray-400 focus:outline-none focus:bg-[#00F0FF]/10"
                     />
                     <button
                         onClick={handleSend}
                         disabled={isLoading}
-                        className="p-2 border-2 border-black bg-[#FFD700] hover:bg-[#FFC000] disabled:opacity-50 transition-colors"
+                        className="p-3 bg-[#FF3366] text-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all active:scale-95"
                     >
-                        <Send size={16} />
+                        <Send size={20} />
                     </button>
                 </div>
             </div>

@@ -47,10 +47,10 @@ router.put('/:id', async (req, res) => {
     }
 
     try {
-        const { nodes, edges, chat_history, name } = req.body;
+        const { nodes, edges, chat_history, name, last_job_id } = req.body;
         const workspace = await Workspace.findOneAndUpdate(
             { _id: req.params.id, user_id: req.user._id },
-            { nodes, edges, chat_history, name, updated_at: Date.now() },
+            { nodes, edges, chat_history, name, last_job_id, updated_at: Date.now() },
             { new: true }
         );
         if (!workspace) {
@@ -60,6 +60,32 @@ router.put('/:id', async (req, res) => {
     } catch (err) {
         console.error('❌ Error updating workspace:', err);
         res.status(500).json({ error: 'Failed to update workspace' });
+    }
+});
+
+// DELETE /api/workspace/:id - Delete workspace
+router.delete('/:id', async (req, res) => {
+    console.log('🗑️ DELETE request received for ID:', req.params.id, 'User:', req.user ? req.user.email : 'None');
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        console.log('🔎 [BACKEND] Searching for workspace to delete:', req.params.id, 'for user:', req.user._id);
+        const workspace = await Workspace.findOneAndDelete({
+            _id: req.params.id,
+            user_id: req.user._id
+        });
+
+        if (!workspace) {
+            return res.status(404).json({ error: 'Workspace not found' });
+        }
+
+        console.log('🗑️ Workspace deleted:', workspace.name);
+        res.json({ message: 'Workspace deleted successfully' });
+    } catch (err) {
+        console.error('❌ Error deleting workspace:', err);
+        res.status(500).json({ error: 'Failed to delete workspace' });
     }
 });
 

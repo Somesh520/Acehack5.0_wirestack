@@ -1,7 +1,7 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { PIPELINE_STEPS } from './pipelineConfig';
-import { Lock, Play, Check } from 'lucide-react';
+import { Lock, Play, Check, ArrowUpRight } from 'lucide-react';
 
 const GamifiedNode = ({ data }) => {
     const { stepId, status, selectedOption, bestPractice, title: nodeTitle } = data; // 'locked', 'active', 'completed'
@@ -18,7 +18,7 @@ const GamifiedNode = ({ data }) => {
     const isCompleted = status === 'completed';
     const isLocked = status === 'locked';
 
-    // Styling based on state
+    // Styling based on state (Neobrutalist Palette)
     const bg = isCompleted ? '#33FF66' : isActive ? '#FFD700' : '#FF3366';
     const ring = isCompleted ? '#33FF66' : isActive ? '#FFD700' : '#FF3366';
     const label = isCompleted ? (techOpt?.name || 'Done') : (stepDef.title || nodeTitle);
@@ -65,6 +65,20 @@ const GamifiedNode = ({ data }) => {
                         </div>
                     </div>
                 </div>
+
+                {/* VIEW CODE ARROW: Only for completed nodes */}
+                {isCompleted && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            window.dispatchEvent(new CustomEvent('open-code-editor'));
+                        }}
+                        className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-[#FFD700] border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all z-10 group/btn"
+                        title="View Code"
+                    >
+                        <ArrowUpRight size={16} className="text-black group-hover/btn:scale-110 transition-transform" />
+                    </button>
+                )}
 
                 {/* Layer / Category badge */}
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white border-2 border-black px-2 py-0.5 text-[9px] font-black uppercase whitespace-nowrap shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
