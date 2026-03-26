@@ -1,4 +1,6 @@
 const express = require('express');
+const http = require('http');
+const https = require('https');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Groq = require('groq-sdk');
 const archiver = require('archiver');
@@ -7,6 +9,286 @@ const router = express.Router();
 const { callLLM, sleep } = require('../utils/aiUtils');
 const { generationQueue } = require('../config/queue');
 const { uploadProjectToS3, fetchProjectFromS3 } = require('../utils/s3Utils');
+const { deploySandbox, getSandboxStatus, stopSandbox } = require('../utils/deployUtils');
+
+// MVP mode: bypass BullMQ and keep generation state in-process.
+const directGenerationJobs = new Map();
+
+function isUrlReachable(url, timeoutMs = 4000) {
+    return new Promise((resolve) => {
+        try {
+            const lib = url.startsWith('https') ? https : http;
+            const req = lib.request(url, { method: 'GET', timeout: timeoutMs }, (res) => {
+                res.resume();
+                resolve(Boolean(res.statusCode) && res.statusCode < 500);
+            });
+
+            req.on('timeout', () => {
+                req.destroy();
+                resolve(false);
+            });
+            req.on('error', () => resolve(false));
+            req.end();
+        } catch {
+            resolve(false);
+        }
+    });
+}
+
+function escapeForTemplate(str = '') {
+        return String(str).replace(/`/g, '').replace(/\$\{/g, '\\${');
+}
+
+function buildFrontendTemplateFiles(idea, stack) {
+        const safeIdea = escapeForTemplate(idea || 'Generated App');
+        const stackText = String(stack || '').toLowerCase();
+        const isVue = stackText.includes('vue');
+
+        if (isVue) {
+                return [
+                        {
+                                name: 'package.json',
+                                content: `{
+    "name": "wirestack-vue-app",
+    "private": true,
+    "version": "0.0.1",
+    "type": "module",
+    "scripts": {
+        "dev": "vite --host 0.0.0.0 --port 3000",
+        "build": "vite build",
+        "preview": "vite preview --host 0.0.0.0 --port 3000"
+    },
+    "dependencies": {
+        "vue": "^3.5.13"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-vue": "^5.1.4",
+        "vite": "^5.4.8"
+    }
+}`
+                        },
+                        {
+                                name: 'vite.config.js',
+                                content: `import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+
+export default defineConfig({
+    plugins: [vue()]
+});`
+                        },
+                        {
+                                name: 'index.html',
+                                content: `<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>WireStack Vue App</title>
+    </head>
+    <body>
+        <div id="app"></div>
+        <script type="module" src="/src/main.js"></script>
+    </body>
+</html>`
+                        },
+                        {
+                                name: 'src/main.js',
+                                content: `import { createApp } from 'vue';
+import App from './App.vue';
+import './style.css';
+
+createApp(App).mount('#app');`
+                        },
+                        {
+                                name: 'src/App.vue',
+                                content: `<script setup>
+import { ref } from 'vue';
+
+const clicks = ref(0);
+const message = ref('Welcome to your deployed Vue app');
+</script>
+
+<template>
+    <main class="shell">
+        <section class="card">
+            <h1>WireStack Vue Sandbox</h1>
+            <p class="idea">Idea: ${safeIdea}</p>
+            <p>{{ message }}</p>
+            <button @click="clicks++">Clicked {{ clicks }} times</button>
+        </section>
+    </main>
+</template>`
+                        },
+                        {
+                                name: 'src/style.css',
+                                content: `:root {
+    color-scheme: light;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+body {
+    margin: 0;
+    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+}
+
+.shell {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+}
+
+.card {
+    width: min(680px, 100%);
+    background: #fff;
+    border: 2px solid #111827;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 8px 8px 0 #111827;
+}
+
+.idea {
+    color: #334155;
+    font-weight: 600;
+}
+
+button {
+    margin-top: 1rem;
+    background: #111827;
+    color: white;
+    border: 0;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+}`
+                        }
+                ];
+        }
+
+        return [
+                {
+                        name: 'package.json',
+                        content: `{
+    "name": "wirestack-react-app",
+    "private": true,
+    "version": "0.0.1",
+    "type": "module",
+    "scripts": {
+        "dev": "vite --host 0.0.0.0 --port 3000",
+        "build": "vite build",
+        "preview": "vite preview --host 0.0.0.0 --port 3000"
+    },
+    "dependencies": {
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-react": "^4.3.1",
+        "vite": "^5.4.8"
+    }
+}`
+                },
+                {
+                        name: 'vite.config.js',
+                        content: `import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+    plugins: [react()]
+});`
+                },
+                {
+                        name: 'index.html',
+                        content: `<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>WireStack React App</title>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main.jsx"></script>
+    </body>
+</html>`
+                },
+                {
+                        name: 'src/main.jsx',
+                        content: `import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.jsx';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+        <App />
+    </React.StrictMode>
+);`
+                },
+                {
+                        name: 'src/App.jsx',
+                        content: `import { useState } from 'react';
+
+export default function App() {
+    const [clicks, setClicks] = useState(0);
+
+    return (
+        <main className="shell">
+            <section className="card">
+                <h1>WireStack React Sandbox</h1>
+                <p className="idea">Idea: ${safeIdea}</p>
+                <p>Your React project is running live on AWS sandbox.</p>
+                <button onClick={() => setClicks((v) => v + 1)}>Clicked {clicks} times</button>
+            </section>
+        </main>
+    );
+}`
+                },
+                {
+                        name: 'src/index.css',
+                        content: `:root {
+    color-scheme: light;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+body {
+    margin: 0;
+    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+}
+
+.shell {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+}
+
+.card {
+    width: min(680px, 100%);
+    background: #fff;
+    border: 2px solid #111827;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 8px 8px 0 #111827;
+}
+
+.idea {
+    color: #334155;
+    font-weight: 600;
+}
+
+button {
+    margin-top: 1rem;
+    background: #111827;
+    color: white;
+    border: 0;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+}`
+                }
+        ];
+}
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -158,6 +440,47 @@ router.post('/chat', async (req, res) => {
 
     console.error('❌ ALL AI MODELS FAILED:', lastError);
     return res.status(500).json({ error: 'AI service completely unavailable after trying all fallbacks.', details: lastError?.message });
+});
+
+// ============================================================
+// SANDBOX TEST ENDPOINT (Static HTML demo)
+// ============================================================
+
+router.post('/deploy-html-test', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { jobId } = req.body;
+    if (!jobId) {
+        return res.status(400).json({ error: 'jobId is required' });
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WireStack Sandbox Demo</title>
+  <style>body{font-family:Arial,sans-serif;background:#f7fafc;color:#2d3748;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}main{padding:2rem;border-radius:12px;background:#ffffff;box-shadow:0 6px 20px rgba(0,0,0,.08);text-align:center}h1{margin:0 0 1rem}p{margin:.5rem 0}</style>
+</head>
+<body>
+  <main>
+    <h1>WireStack HTML Sandbox</h1>
+    <p>Your static page is running successfully in ECS sandbox.</p>
+    <p>Job ID: <strong>${jobId}</strong></p>
+  </main>
+</body>
+</html>`;
+
+    try {
+        await uploadProjectToS3(jobId, [{ name: 'index.html', content: html }]);
+        const result = await deploySandbox(jobId);
+        return res.json({ message: 'HTML sandbox deploy started', result });
+    } catch (err) {
+        console.error('[HTML SANDBOX] failed:', err);
+        return res.status(500).json({ error: 'Sandbox deploy failed', details: err.message });
+    }
 });
 
 // ============================================================
@@ -384,18 +707,99 @@ router.post('/enqueue-project', async (req, res) => {
         return res.status(400).json({ error: 'idea and stack are required' });
     }
 
-    try {
-        const job = await generationQueue.add('project-generation', {
-            idea,
-            stack,
-            type: 'project'
-        });
+    const jobId = `direct-${Date.now()}`;
+    const jobState = {
+        id: jobId,
+        state: 'active',
+        progress: 5,
+        files: [],
+        result: null,
+        failedReason: null,
+        s3Folder: null,
+        sandboxState: null,
+        liveUrl: null,
+        startedAt: new Date().toISOString(),
+    };
 
-        res.json({ jobId: job.id });
-    } catch (err) {
-        console.error('❌ Job enqueue error:', err.message);
-        res.status(500).json({ error: 'Failed to queue project generation', details: err.message });
-    }
+    directGenerationJobs.set(jobId, jobState);
+
+    (async () => {
+        try {
+            // Step 1: Generate a frontend project template (React default, Vue if stack contains "vue")
+            jobState.progress = 10;
+            const generatedFiles = buildFrontendTemplateFiles(idea, stack);
+            jobState.files = generatedFiles;
+            jobState.progress = 55;
+
+            // Step 2: Upload project files to S3 (best effort)
+            let s3Folder = null;
+            try {
+                await uploadProjectToS3(jobId, generatedFiles);
+                s3Folder = `projects/${jobId}/`;
+            } catch (s3Err) {
+                console.warn(`[DIRECT:${jobId}] S3 upload failed:`, s3Err.message);
+            }
+            jobState.progress = 75;
+
+            // Step 3: Auto-deploy sandbox and wait for live URL
+            await deploySandbox(jobId);
+            jobState.sandboxState = 'PROVISIONING';
+            jobState.progress = 85;
+
+            for (let attempt = 0; attempt < 24; attempt++) {
+                const sandbox = await getSandboxStatus(jobId);
+                jobState.sandboxState = sandbox.state;
+                jobState.liveUrl = sandbox.url || null;
+
+                // URL is returned only when ECS reports RUNNING; we additionally verify HTTP reachability
+                // so frontend never gets a URL that still returns connection refused.
+                if (sandbox.state === 'RUNNING' && sandbox.url) {
+                    const reachable = await isUrlReachable(sandbox.url);
+                    if (reachable) {
+                        break;
+                    }
+                    jobState.liveUrl = null;
+                    jobState.sandboxState = 'RUNNING_NOT_READY';
+                }
+                if (sandbox.state === 'ERROR' || sandbox.state === 'STOPPED' || sandbox.state === 'NOT_FOUND') {
+                    break;
+                }
+                await sleep(5000);
+            }
+
+            // Final guard: if URL never became reachable within retry window,
+            // surface a clear failure for UI instead of marking generation successful.
+            if (!jobState.liveUrl) {
+                jobState.progress = 100;
+                jobState.state = 'failed';
+                jobState.s3Folder = s3Folder;
+                jobState.failedReason = 'Sandbox launched but live URL was not reachable. Check ECS task logs and ensure security group allows inbound TCP 3000.';
+                jobState.result = {
+                    files: generatedFiles,
+                    s3Folder,
+                    liveUrl: null,
+                    sandboxState: jobState.sandboxState,
+                };
+                return;
+            }
+
+            jobState.progress = 100;
+            jobState.state = 'completed';
+            jobState.s3Folder = s3Folder;
+            jobState.result = {
+                files: generatedFiles,
+                s3Folder,
+                liveUrl: jobState.liveUrl,
+                sandboxState: jobState.sandboxState,
+            };
+        } catch (err) {
+            jobState.state = 'failed';
+            jobState.failedReason = err.message;
+            console.error(`[DIRECT:${jobId}] Generation failed:`, err.message);
+        }
+    })();
+
+    res.json({ jobId, mode: 'direct' });
 });
 
 router.get('/job-status/:id', async (req, res) => {
@@ -404,6 +808,22 @@ router.get('/job-status/:id', async (req, res) => {
     }
 
     try {
+        const directJob = directGenerationJobs.get(req.params.id);
+        if (directJob) {
+            return res.json({
+                id: directJob.id,
+                state: directJob.state,
+                progress: directJob.progress,
+                result: directJob.result,
+                failedReason: directJob.failedReason,
+                files: directJob.files || [],
+                s3Folder: directJob.s3Folder || null,
+                // Expose liveUrl/sandboxState at top-level for frontend polling convenience.
+                liveUrl: directJob.liveUrl || null,
+                sandboxState: directJob.sandboxState || null,
+            });
+        }
+
         const job = await generationQueue.getJob(req.params.id);
 
         // If job not found in Redis, try S3 fallback
@@ -992,7 +1412,7 @@ ${fileContents.map(f => `\n--- ${f.name} ---\n${f.content}`).join('\n')}`;
 // ============================================================
 // SANDBOX DEPLOYMENT: Deploy AI-generated projects to AWS Fargate
 // ============================================================
-const { deploySandbox, getSandboxStatus, stopSandbox } = require('../utils/deployUtils');
+// deploySandbox, getSandboxStatus, stopSandbox are already imported near top of file.
 
 // Deploy a sandbox for a generated project
 router.post('/deploy-sandbox', async (req, res) => {

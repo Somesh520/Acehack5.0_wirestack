@@ -11,6 +11,17 @@ const openai = new OpenAI({
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+function withTimeout(promise, ms, label) {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error(`${label} timed out after ${ms}ms`));
+        }, ms);
+    });
+
+    return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+}
+
 async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2, preferredModel = null) {
     const modelsToTry = [
         { provider: 'nvidia', modelId: 'minimaxai/minimax-m2.5', engineName: 'NVIDIA (Minimax M2.5)' },
@@ -28,8 +39,9 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
             if (preferredModel && preferredModel !== modelOpt.provider) continue;
 
             try {
+                console.log(`🤖 Trying ${modelOpt.engineName} (attempt ${attempt}/${retries})`);
                 if (modelOpt.provider === 'nvidia') {
-                    const completion = await openai.chat.completions.create({
+                    const completion = await withTimeout(openai.chat.completions.create({
                         model: modelOpt.modelId,
                         messages: [
                             { role: 'system', content: systemPrompt },
@@ -37,12 +49,12 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
                         ],
                         temperature: 0.7,
                         max_tokens: Math.min(maxTokens, 4000), // Minimax allows larger responses
-                    });
+                    }), 60000, modelOpt.engineName);
                     const reply = completion.choices[0]?.message?.content;
                     if (reply) return reply;
 
                 } else if (modelOpt.provider === 'groq' && process.env.GROQ_API_KEY) {
-                    const chatCompletion = await groq.chat.completions.create({
+                    const chatCompletion = await withTimeout(groq.chat.completions.create({
                         messages: [
                             { role: 'system', content: systemPrompt },
                             { role: 'user', content: userMessage }
@@ -51,7 +63,7 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
                         temperature: 0.7,
                         // Not explicitly setting max_tokens to a huge number for Groq to prevent TPM overallocation on the free tier
                         max_tokens: Math.min(maxTokens, 1500),
-                    });
+                    }), 60000, modelOpt.engineName);
                     const reply = chatCompletion.choices[0]?.message?.content;
                     if (reply) return reply;
 
@@ -62,7 +74,7 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
                         generationConfig: { maxOutputTokens: maxTokens },
                     });
 
-                    const result = await model.generateContent(userMessage);
+                    const result = await withTimeout(model.generateContent(userMessage), 60000, modelOpt.engineName);
                     const reply = result.response.text();
                     if (reply) return reply;
                 }

@@ -5,6 +5,8 @@
 
 const { ECSClient, RunTaskCommand, DescribeTasksCommand, StopTaskCommand, ListTasksCommand } = require('@aws-sdk/client-ecs');
 const { EC2Client, DescribeNetworkInterfacesCommand } = require('@aws-sdk/client-ec2');
+const http = require('http');
+const https = require('https');
 
 const ecsClient = new ECSClient({
     region: process.env.AWS_REGION || 'ap-south-1',
@@ -26,6 +28,26 @@ const ec2Client = new EC2Client({
 
 // In-memory store for tracking deployments (jobId → taskArn)
 const deployments = new Map();
+
+function isUrlReachable(url, timeoutMs = 4000) {
+    return new Promise((resolve) => {
+        try {
+            const lib = url.startsWith('https') ? https : http;
+            const req = lib.request(url, { method: 'GET', timeout: timeoutMs }, (res) => {
+                res.resume();
+                resolve(Boolean(res.statusCode) && res.statusCode < 500);
+            });
+            req.on('timeout', () => {
+                req.destroy();
+                resolve(false);
+            });
+            req.on('error', () => resolve(false));
+            req.end();
+        } catch {
+            resolve(false);
+        }
+    });
+}
 
 /**
  * Deploy a sandbox for a given jobId
@@ -131,9 +153,24 @@ async function getSandboxStatus(jobId) {
 
                 const publicIp = eniResult.NetworkInterfaces?.[0]?.Association?.PublicIp;
                 if (publicIp) {
+                    const url = `http://${publicIp}:3000`;
+                    // Even after task is RUNNING, app inside container may still be booting.
+                    // Validate URL before advertising it as live.
+                    const reachable = await isUrlReachable(url);
+                    if (!reachable) {
+                        return {
+                            // Candidate URL is useful for diagnostics, but UI should not treat it as live yet.
+                            state: 'RUNNING_NOT_READY',
+                            url: null,
+                            candidateUrl: url,
+                            taskArn,
+                            startedAt: task.startedAt,
+                            message: 'Task is running but app is not reachable yet'
+                        };
+                    }
                     return {
                         state: 'RUNNING',
-                        url: `http://${publicIp}:3000`,
+                        url,
                         taskArn,
                         startedAt: task.startedAt
                     };

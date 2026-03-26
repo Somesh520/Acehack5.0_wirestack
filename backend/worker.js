@@ -26,6 +26,7 @@ async function startWorker() {
 
             // --- Step 1: Generate Plan ---
             await job.updateProgress(10);
+            console.log(`[JOB:${job.id}] Step 1/3: generating project plan...`);
             const planSystemPrompt = `You are a world-class Elite Senior Software Architect. Given a project idea and tech stack, return ONLY a JSON array of files needed to build a stunning, fully working MVP UI.
 Each entry has "name" (filename including relative paths like src/App.jsx or package.json) and "purpose".
 
@@ -44,6 +45,7 @@ CRITICAL RULES FOR GUARANTEED EXECUTION:
             const lastBracket = jsonStr.lastIndexOf(']');
             if (firstBracket !== -1 && lastBracket !== -1) jsonStr = jsonStr.slice(firstBracket, lastBracket + 1);
             const plan = JSON.parse(jsonStr);
+            console.log(`[JOB:${job.id}] Step 1/3 complete: ${plan.length} files planned.`);
 
             await job.updateProgress(20);
             const generatedFiles = [];

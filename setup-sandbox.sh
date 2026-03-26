@@ -38,19 +38,23 @@ aws ecr create-repository \
     2>/dev/null || echo "  ℹ️ Repository already exists"
 
 # ============================================================
-# Step 2: Build Docker Image
+# Step 2: Build + Push Docker Image (linux/amd64 for Fargate)
 # ============================================================
-echo -e "\n${YELLOW}🐳 Step 2: Building Docker Image...${NC}"
+echo -e "\n${YELLOW}🐳 Step 2: Building & Pushing Docker Image...${NC}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-docker build --platform linux/amd64 -t ${ECR_REPO}:latest "${SCRIPT_DIR}/sandbox"
+aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
+
+# ECS Fargate expects linux/amd64 image for this setup; buildx avoids accidental host-arch pushes from Apple Silicon.
+docker buildx build \
+    --platform linux/amd64 \
+    -t ${IMAGE_URI} \
+    --push \
+    "${SCRIPT_DIR}/sandbox"
 
 # ============================================================
-# Step 3: Push to ECR
+# Step 3: Image pushed via buildx
 # ============================================================
-echo -e "\n${YELLOW}☁️ Step 3: Pushing to ECR...${NC}"
-aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
-docker tag ${ECR_REPO}:latest ${IMAGE_URI}
-docker push ${IMAGE_URI}
+echo -e "\n${YELLOW}☁️ Step 3: Image pushed to ECR via buildx${NC}"
 
 echo -e "${GREEN}✅ Image pushed: ${IMAGE_URI}${NC}"
 
