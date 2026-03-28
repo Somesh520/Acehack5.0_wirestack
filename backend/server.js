@@ -93,10 +93,14 @@ app.post('/api/generate', (req, res) => {
     res.json({ message: "Generate endpoint hit successfully. Stitching engine not yet integrated." });
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server listening on port ${PORT}`);
-    // Assuming connectDB() logs the MongoDB connection status.
-    // The instruction implies adding the GitHub token status after the MongoDB log.
-    // If the MongoDB log is not explicitly here, it's handled by connectDB().
-    console.log(process.env.GITHUB_TOKEN ? '✅ GitHub Token: Loaded' : '⚠️ GitHub Token: Not found (Rate limits will be low)');
-});
+if (process.env.VERCEL !== '1') {
+    app.listen(PORT, () => {
+        console.log(`🚀 Server listening on port ${PORT}`);
+        // Assuming connectDB() logs the MongoDB connection status.
+        // The instruction implies adding the GitHub token status after the MongoDB log.
+        // If the MongoDB log is not explicitly here, it's handled by connectDB().
+        console.log(process.env.GITHUB_TOKEN ? '✅ GitHub Token: Loaded' : '⚠️ GitHub Token: Not found (Rate limits will be low)');
+    });
+}
+
+module.exports = app;

@@ -2,7 +2,7 @@
     "rewrites": [
         {
             "source": "/api/:path*",
-            "destination": "https://acehack5-0-wirestack.onrender.com/api/:path*"
+            "destination": "https://acehack5-0-wirestack-delc.onrender.com/api/:path*"
         },
         {
             "source": "/((?!api).*)",
