@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Sparkles, Activity, ShieldCheck, Cpu } from 'lucide-react';
+
 import StackSelector from './StackSelector';
 import DiagnosticTest from './DiagnosticTest';
 import ModuleRoadmap from './ModuleRoadmap';
@@ -19,6 +22,7 @@ export default function LearnPage() {
     const [activeModule, setActiveModule] = useState(null);
     const [submittedCode, setSubmittedCode] = useState(null);
     const [user, setUser] = useState(null);
+    const [isResetting, setIsResetting] = useState(false);
 
     // Check auth on mount
     useEffect(() => {
@@ -82,12 +86,14 @@ export default function LearnPage() {
         if (isStackId) {
              const stackName = STACKS.find(s => s.id === targetPhase)?.title || targetPhase;
              if (window.confirm(`Deploy to ${stackName} mission? Current Intel will be archived.`)) {
+                setIsResetting(true);
                 fetch('/api/v1/mission/reset', { method: 'POST', credentials: 'include' })
                     .then(res => res.json())
                     .then(() => {
                         handleStackSelect(targetPhase);
                     })
-                    .catch(console.error);
+                    .catch(console.error)
+                    .finally(() => setIsResetting(false));
              }
              return;
         }
@@ -102,6 +108,7 @@ export default function LearnPage() {
         } else if (targetPhase === 'new_mission') {
             // Call backend to reset/archive current mission
             if (window.confirm('Archive current mission and start a new one?')) {
+                setIsResetting(true);
                 fetch('/api/v1/mission/reset', { method: 'POST', credentials: 'include' })
                     .then(res => res.json())
                     .then(() => {
@@ -109,13 +116,30 @@ export default function LearnPage() {
                         setDiagnosticLevel(null);
                         setPhase('stack_select');
                     })
-                    .catch(console.error);
+                    .catch(console.error)
+                    .finally(() => setIsResetting(false));
             }
         }
     };
 
     // ─── Render current phase content ────────────────────────
     const renderContent = () => {
+        if (isResetting) {
+            return (
+                <div className="flex flex-col items-center justify-center h-full py-20 px-10 border-[6px] border-dashed border-black/10 bg-white">
+                    <motion.div
+                        animate={{ rotate: 360, scale: [1, 1.2, 1] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                        className="p-8 border-4 border-black bg-[#FFE145] mb-10 shadow-[6px_6px_0px_#000]"
+                    >
+                        <Cpu size={48} strokeWidth={3} />
+                    </motion.div>
+                    <h3 className="text-3xl font-black uppercase tracking-tighter italic mb-4">SYNCING_MISSION_ARCHIVES</h3>
+                    <p className="text-[10px] font-black uppercase text-black/30 tracking-[0.5em] animate-pulse">Initializing Tactical Handshake // Awaiting Protocol 0.2.1</p>
+                </div>
+            );
+        }
+
         switch (phase) {
             case 'stack_select':
                 return <StackSelector onSelect={handleStackSelect} />;
