@@ -23,7 +23,7 @@ const {
     downloadProject,
     deployHtmlTest,
 } = require('../controllers/generationController');
-const { analyzeStack, analyzeFolder, analyzeRepo } = require('../controllers/analysisController');
+const { analyzeStack, analyzeFolder, analyzeRepo, codeqlSemanticQuery, fetchGithubCodeqlAlerts } = require('../controllers/analysisController');
 const { deploySandboxHandler, getSandboxStatusHandler, stopSandboxHandler } = require('../controllers/sandboxController');
 
 // ─── AI Chat ─────────────────────────────────────────────────
@@ -51,6 +51,8 @@ router.post('/download', requireAuth, downloadProject);
 router.post('/analyze-stack', requireAuth, analyzeStack);
 router.post('/analyze-folder', requireAuth, analyzeFolder);
 router.post('/analyze-repo', requireAuth, analyzeRepo);
+router.post('/codeql-semantic-query', requireAuth, codeqlSemanticQuery);
+router.post('/github-codeql-alerts', requireAuth, fetchGithubCodeqlAlerts);
 
 // ─── Sandbox Management ──────────────────────────────────────
 router.post('/deploy-sandbox', requireAuth, deploySandboxHandler);

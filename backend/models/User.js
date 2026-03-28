@@ -11,12 +11,45 @@ const moduleProgressSchema = new mongoose.Schema({
         enum: ['locked', 'unlocked', 'in_progress', 'completed'],
         default: 'locked'
     },
-    vibeCheckScore: { type: Number, default: 0 },       // 0-100 score from AI grading
-    vibeCheckAttempts: { type: Number, default: 0 },     // How many times they tried the vibe check
-    codeSubmitted: { type: String, default: '' },        // Last submitted code snapshot
+    vibeCheckScore: { type: Number, default: 0 },
+    vibeCheckAttempts: { type: Number, default: 0 },
+    codeSubmitted: { type: String, default: '' },
     unlockedAt: Date,
     completedAt: Date,
 }, { _id: false });
+
+const dynamicModuleSchema = new mongoose.Schema({
+    moduleId: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
+    title: String,
+    description: String,
+    challenge: String,
+    concept: String,
+    theory: { type: String, default: '' },
+    mustUse: { type: [String], default: [] },
+    acceptanceCriteria: { type: [String], default: [] },
+    demoTitle: { type: String, default: '' },
+    demoScenario: { type: String, default: '' },
+    demoSteps: { type: [String], default: [] },
+    demoSnippet: { type: String, default: '' },
+    coachQuestions: { type: [String], default: [] },
+    vibeQuestion: { type: String, default: '' },
+    starterCode: { type: String, default: '// Ready to deploy mission...' },
+    solution: { type: String, default: '' },
+    xpReward: { type: Number, default: 250 },
+    estimatedMinutes: { type: Number, default: 45 },
+    order: Number,
+    status: {
+        type: String,
+        enum: ['locked', 'unlocked', 'in_progress', 'completed'],
+        default: 'locked'
+    },
+    vibeCheckScore: { type: Number, default: 0 },
+    vibeCheckAttempts: { type: Number, default: 0 },
+    codeSubmitted: { type: String, default: '' },
+    unlockedAt: Date,
+    completedAt: Date,
+    docs_url: String,
+});
 
 const userSchema = new mongoose.Schema({
     // ─── Existing Google Auth Fields (untouched) ─────────────
@@ -39,6 +72,16 @@ const userSchema = new mongoose.Schema({
         default: null
     },
 
+    // ─── GitHub Integration Fields ──────────────────────────
+    github: {
+        connected: { type: Boolean, default: false },
+        username: { type: String, default: '' },
+        profileUrl: { type: String, default: '' },
+        accessToken: { type: String, default: '' },
+        scopes: { type: [String], default: [] },
+        connectedAt: { type: Date, default: null },
+    },
+
     // ─── Learning Engine Fields (new) ────────────────────────
     /**
      * Selected tech stack — set when user picks their learning path.
@@ -46,7 +89,6 @@ const userSchema = new mongoose.Schema({
      */
     selectedStack: {
         type: String,
-        enum: ['MERN', 'React', 'Node.js', 'Python', 'Vue', 'Angular', 'Next.js', 'Express', null],
         default: null
     },
 
@@ -77,6 +119,12 @@ const userSchema = new mongoose.Schema({
     totalModulesCompleted: { type: Number, default: 0 },
     currentStreak: { type: Number, default: 0 },         // days in a row
     lastActiveAt: Date,
+
+    /**
+     * AI-Generated Dynamic Roadmap.
+     * Stores the custom modules created specifically for this user's IQ Check.
+     */
+    activeRoadmap: [dynamicModuleSchema],
 
     /**
      * History of missions (past learning paths).

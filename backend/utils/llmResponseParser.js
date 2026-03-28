@@ -50,13 +50,30 @@ function extractCodeBlock(text, lang) {
  */
 function parseJsonFromLLM(rawText, fallbackShape = {}) {
     try {
-        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-        return JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
-    } catch {
-        console.warn('⚠️ LLM JSON parse failed, returning fallback');
+        // 1. Strip markdown code fences if present
+        let clean = rawText
+            .replace(/^`{3}[\w]*\n?/gm, '')
+            .replace(/`{3}\s*$/gm, '')
+            .trim();
+
+        // 2. Extract the first { to the last }
+        const jsonMatch = clean.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('No JSON object found');
+        
+        const jsonStr = jsonMatch[0];
+
+        // 3. Normalize common LLM syntax errors
+        const normalized = jsonStr
+            .replace(/[\u2018\u2019]/g, "'")  // Smart single quotes
+            .replace(/[\u201C\u201D]/g, '"')  // Smart double quotes
+            .replace(/,\s*([}\]])/g, '$1');   // Trailing commas
+
+        return JSON.parse(normalized);
+    } catch (err) {
+        console.warn('⚠️ [PARSER] LLM JSON parse failed, using fallback:', err.message);
         const fallback = { summary: rawText };
         for (const key of Object.keys(fallbackShape)) {
-            fallback[key] = null;
+            fallback[key] = fallbackShape[key] || null;
         }
         return fallback;
     }

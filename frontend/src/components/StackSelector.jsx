@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Code, Server, Layers, Cpu, Globe, Layout, Database, Terminal, ShieldCheck, ArrowRight, Sparkles, Activity } from 'lucide-react';
 import { STACKS } from '../constants/stacks.jsx';
 
-export default function StackSelector({ onSelect }) {
+export default function StackSelector({ onSelect, modeLabel = 'MISSION_PHASE_01::SPECIALIZATION' }) {
     return (
         <div className="min-h-screen bg-[#FFFFF0] font-mono flex flex-col items-center py-24 px-6 relative overflow-hidden">
             {/* Background Decorations */}
@@ -16,7 +16,7 @@ export default function StackSelector({ onSelect }) {
                     animate={{ y: 0, opacity: 1 }}
                     className="inline-flex items-center gap-2 px-6 py-2 border-[4px] border-black bg-[#FFE145] mb-8 shadow-[6px_6px_0px_#000] uppercase font-black text-xs tracking-[0.2em]"
                 >
-                    <Activity size={16} strokeWidth={4} /> MISSION_PHASE_01::SPECIALIZATION
+                    <Activity size={16} strokeWidth={4} /> {modeLabel}
                 </motion.div>
                 
                 <h1 className="text-6xl md:text-9xl font-black uppercase mb-8 tracking-[-0.05em] leading-[0.8] text-black">

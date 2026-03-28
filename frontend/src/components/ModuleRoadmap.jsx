@@ -2,6 +2,16 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, Unlock, CheckCircle, ChevronRight, BookOpen, Zap, ArrowLeft, Star, Target, Info, Sparkles, AlertCircle, Info as InfoIcon, Cpu, Map, Plus } from 'lucide-react';
 
+function formatModuleTitle(title) {
+    if (!title) return 'UNTITLED_MODULE';
+    return title
+        .toString()
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toUpperCase();
+}
+
 export default function ModuleRoadmap({ stack, level, onSelectModule, onBack }) {
     const [modules, setModules] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -22,13 +32,13 @@ export default function ModuleRoadmap({ stack, level, onSelectModule, onBack }) 
     const statusConfig = {
         locked: { 
             icon: Lock, 
-            bg: 'bg-[#fafafa]', 
+            bg: 'bg-[#f6f6f6]', 
             border: 'border-black/10', 
-            text: 'text-black/30', 
+            text: 'text-black/60', 
             label: 'ACCESS_RESTRICTED', 
-            accent: 'bg-black/5',
+            accent: 'bg-[#efefef]',
             shadow: 'shadow-none',
-            iconColor: 'text-black/20'
+            iconColor: 'text-black/35'
         },
         unlocked: { 
             icon: Unlock, 
@@ -92,6 +102,7 @@ export default function ModuleRoadmap({ stack, level, onSelectModule, onBack }) 
                         <p className="text-lg font-bold text-black/40 uppercase leading-snug">
                             Strategic roadmap for <span className="text-black border-b-4 border-[#3EFFB2]">{stack}</span> ecosystem. Sync all tactical modules to achieve full system mastery.
                         </p>
+
                     </div>
                     
                     {/* Progress Overview Widgets */}
@@ -167,10 +178,11 @@ export default function ModuleRoadmap({ stack, level, onSelectModule, onBack }) 
                             {modules.map((mod, i) => {
                                 const status = statusConfig[mod.userStatus] || statusConfig.locked;
                                 const isClickable = mod.userStatus !== 'locked';
+                                const displayTitle = formatModuleTitle(mod.title);
                                 
                                 return (
                                     <motion.div
-                                        key={mod._id}
+                                        key={mod._id || mod.moduleId || `module-${i}`}
                                         initial={{ opacity: 0, x: -30 }}
                                         whileInView={{ opacity: 1, x: 0 }}
                                         viewport={{ once: true, margin: "-100px" }}
@@ -194,12 +206,12 @@ export default function ModuleRoadmap({ stack, level, onSelectModule, onBack }) 
                                         {/* Module Card container */}
                                         <div className="relative group">
                                             {/* Shadow layer */}
-                                            <div className="absolute inset-0 bg-black translate-x-3 translate-y-3 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform pointer-events-none" />
+                                            <div className={`absolute inset-0 ${isClickable ? 'bg-black' : 'bg-black/25'} translate-x-3 translate-y-3 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform pointer-events-none`} />
                                             
                                             <button
                                                 onClick={() => isClickable && onSelectModule(mod)}
                                                 disabled={!isClickable}
-                                                className={`w-full relative p-10 border-[6px] border-black ${status.bg} flex flex-col md:flex-row gap-12 text-left transition-transform group-hover:-translate-x-1 group-hover:-translate-y-1 ${isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+                                                className={`w-full relative p-10 border-[6px] border-black ${status.bg} flex flex-col md:flex-row gap-12 text-left transition-transform group-hover:-translate-x-1 group-hover:-translate-y-1 ${isClickable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                                             >
                                                 <div className="flex-1">
                                                     <div className="flex flex-wrap items-center gap-4 mb-6">
@@ -209,11 +221,11 @@ export default function ModuleRoadmap({ stack, level, onSelectModule, onBack }) 
                                                         <span className="text-[10px] font-black text-black/40 uppercase tracking-widest">ID::UNIT_{i+1}</span>
                                                     </div>
 
-                                                    <h3 className={`text-4xl md:text-5xl font-black uppercase leading-none mb-6 tracking-tight ${isClickable ? 'group-hover:text-[#FF3EA5]' : ''}`}>
-                                                        {mod.title}
+                                                    <h3 className={`text-3xl md:text-4xl font-black uppercase leading-tight mb-6 tracking-tight whitespace-normal break-words ${isClickable ? 'group-hover:text-[#FF3EA5]' : ''}`}>
+                                                        {displayTitle}
                                                     </h3>
 
-                                                    <p className="text-lg font-bold text-black/50 uppercase leading-relaxed mb-8 max-w-2xl italic">
+                                                    <p className={`text-lg font-bold uppercase leading-relaxed mb-8 max-w-2xl italic ${isClickable ? 'text-black/50' : 'text-black/45'}`}>
                                                         {mod.description}
                                                     </p>
 

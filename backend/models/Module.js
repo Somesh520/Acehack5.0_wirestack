@@ -98,6 +98,9 @@ const moduleSchema = new mongoose.Schema({
         type: Number,
         default: 100
     },
+    
+    /** Link to official documentation */
+    docs_url: String,
 
     /** Whether this module is currently active/published */
     isActive: {

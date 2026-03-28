@@ -4,6 +4,88 @@ import { Brain, CheckCircle, XCircle, ArrowRight, Loader2, Sparkles, Zap, Target
 
 const API_BASE = '';
 
+const IQ_BANK = [
+    {
+        question: 'If all API calls are asynchronous and some fail silently, what is the smartest first action?',
+        options: ['Increase timeout everywhere', 'Add clear error logging and isolate failing branch', 'Retry forever', 'Skip failed calls'],
+        correctIndex: 1,
+        concept: 'IQ: Fault Isolation'
+    },
+    {
+        question: 'A solution works fast on small input but degrades quickly at scale. Best reasoning move?',
+        options: ['Add animations', 'Measure complexity hotspots and optimize bottlenecks first', 'Rename variables', 'Increase font size'],
+        correctIndex: 1,
+        concept: 'IQ: Performance Reasoning'
+    },
+    {
+        question: 'Two fixes solve a bug: one quick patch and one root-cause refactor. Best long-term choice?',
+        options: ['Always quick patch', 'Ignore both', 'Prefer root-cause fix with risk-managed rollout', 'Wait for users to report again'],
+        correctIndex: 2,
+        concept: 'IQ: Engineering Judgment'
+    },
+    {
+        question: 'User data flow is unclear across components. What should you do first?',
+        options: ['Refactor randomly', 'Map state ownership and update paths before changes', 'Delete all state', 'Convert all to globals'],
+        correctIndex: 1,
+        concept: 'IQ: System Mapping'
+    },
+    {
+        question: 'Feature request conflicts with security constraint. Best decision pattern?',
+        options: ['Ship insecure version', 'Block feature forever', 'Design secure alternative and communicate trade-off', 'Hide the issue'],
+        correctIndex: 2,
+        concept: 'IQ: Trade-off Thinking'
+    },
+];
+
+function normalizeQuestionKey(question, concept) {
+    return `${String(question || '').toLowerCase().replace(/\s+/g, ' ').trim()}::${String(concept || '').toLowerCase().trim()}`;
+}
+
+function shuffleArray(input) {
+    const arr = [...input];
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function interleaveWithIqQuestions(serverQuestions = []) {
+    const seen = new Set();
+    const deduped = [];
+
+    for (const q of serverQuestions) {
+        const key = normalizeQuestionKey(q?.question, q?.concept);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        deduped.push({ ...q, type: 'conceptual' });
+    }
+
+    const shuffled = shuffleArray(deduped);
+    const output = [];
+
+    shuffled.forEach((conceptualQ, index) => {
+        output.push({
+            ...conceptualQ,
+            id: conceptualQ.id || `concept_${index + 1}`,
+            type: 'conceptual',
+        });
+
+        const iqSeed = IQ_BANK[index % IQ_BANK.length];
+        output.push({
+            id: `iq_${index + 1}`,
+            type: 'iq',
+            question: iqSeed.question,
+            options: iqSeed.options,
+            correctIndex: iqSeed.correctIndex,
+            concept: iqSeed.concept,
+            derivedFrom: conceptualQ.id || `concept_${index + 1}`,
+        });
+    });
+
+    return output;
+}
+
 export default function DiagnosticTest({ stack, onComplete, onSkip }) {
     const [phase, setPhase] = useState('loading'); // loading | intro | quiz | result
     const [questions, setQuestions] = useState([]);
@@ -32,7 +114,8 @@ export default function DiagnosticTest({ stack, onComplete, onSkip }) {
             })
             .then(data => {
                 if (data.questions?.length > 0) {
-                    setQuestions(data.questions);
+                    const merged = interleaveWithIqQuestions(data.questions);
+                    setQuestions(merged);
                     setPhase('intro');
                 } else {
                     throw new Error('No questions received');
@@ -56,7 +139,10 @@ export default function DiagnosticTest({ stack, onComplete, onSkip }) {
                 questionId: q.id,
                 selectedIndex: selectedOption,
                 correctIndex: q.correctIndex,
-                isCorrect
+                isCorrect,
+                concept: q.concept,
+                type: q.type || 'conceptual',
+                isIq: q.type === 'iq'
             }];
             setAnswers(newAnswers);
 
@@ -74,17 +160,30 @@ export default function DiagnosticTest({ stack, onComplete, onSkip }) {
         setSubmitting(true);
         setPhase('result');
 
+        const apiAnswers = finalAnswers
+            .filter((answer) => !answer.isIq)
+            .map(({ questionId, selectedIndex, correctIndex, isCorrect, concept }) => ({
+                questionId,
+                selectedIndex,
+                correctIndex,
+                isCorrect,
+                concept,
+            }));
+
+        const iqTotal = finalAnswers.filter((answer) => answer.isIq).length;
+        const iqCorrect = finalAnswers.filter((answer) => answer.isIq && answer.isCorrect).length;
+
         try {
             const res = await fetch(`${API_BASE}/api/v1/diagnostic/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ answers: finalAnswers }),
+                body: JSON.stringify({ answers: apiAnswers }),
                 credentials: 'include'
             });
 
             if (!res.ok) throw new Error('Submit failed');
             const data = await res.json();
-            setResult(data);
+            setResult({ ...data, iqTotal, iqCorrect });
 
             setTimeout(() => {
                 onComplete?.({
@@ -100,7 +199,7 @@ export default function DiagnosticTest({ stack, onComplete, onSkip }) {
             const total = finalAnswers.length;
             const percentage = Math.round((correct / total) * 100);
             const level = percentage >= 80 ? 'Advanced' : percentage >= 50 ? 'Intermediate' : 'Beginner';
-            setResult({ score: correct, totalQuestions: total, percentage, level, message: `Completed with ${correct}/${total}` });
+            setResult({ score: correct, totalQuestions: total, percentage, level, message: `Completed with ${correct}/${total}`, iqTotal, iqCorrect });
             setTimeout(() => {
                 onComplete?.({ score: correct, total, level, percentage });
             }, 2500);
@@ -160,11 +259,11 @@ export default function DiagnosticTest({ stack, onComplete, onSkip }) {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                         <div className="bg-white border-4 border-black p-4 text-center">
                             <Zap size={24} className="mx-auto mb-2 text-[#FF3366]" />
-                            <p className="text-[10px] font-black uppercase">3 Challenges</p>
+                                <p className="text-[10px] font-black uppercase">IQ After Every Question</p>
                         </div>
                         <div className="bg-white border-4 border-black p-4 text-center">
                             <Brain size={24} className="mx-auto mb-2 text-[#00F0FF]" />
-                            <p className="text-[10px] font-black uppercase">Conceptual</p>
+                                <p className="text-[10px] font-black uppercase">No Repeat Questions</p>
                         </div>
                         <div className="bg-white border-4 border-black p-4 text-center">
                             <Sparkles size={24} className="mx-auto mb-2 text-[#33FF66]" />
@@ -206,6 +305,11 @@ export default function DiagnosticTest({ stack, onComplete, onSkip }) {
                             
                             <div className="bg-white border-4 border-black p-4 mb-8">
                                 <p className="font-black text-sm uppercase">{result.message}</p>
+                                {typeof result.iqTotal === 'number' && (
+                                    <p className="font-black text-[10px] uppercase mt-2 text-black/60">
+                                        IQ ROUND: {result.iqCorrect || 0}/{result.iqTotal}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="flex flex-col items-center gap-3">
@@ -249,7 +353,7 @@ export default function DiagnosticTest({ stack, onComplete, onSkip }) {
                     <div className="bg-white border-6 border-black p-8 shadow-[12px_12px_0px_0px_rgba(255,51,102,0.1)] mb-8">
                         <div className="flex items-center gap-3 mb-6">
                             <span className="bg-[#FFD700] border-2 border-black px-2 py-0.5 text-[10px] font-black uppercase">
-                                Conceptual Challenge
+                                {q.type === 'iq' ? 'IQ Challenge' : 'Conceptual Challenge'}
                             </span>
                             {q.concept && <span className="text-[10px] font-black text-gray-400 uppercase">Target: {q.concept}</span>}
                         </div>
