@@ -284,6 +284,11 @@ export default function DebugLab({ selectedStack, userLevel = 'Beginner' }) {
     passed: 0,
     topics: {},
   });
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [winner, setWinner] = useState(null);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true);
+  const [leaderboardError, setLeaderboardError] = useState('');
+  const [leaderboardUpdatedAt, setLeaderboardUpdatedAt] = useState(null);
 
   const stackOptions = useMemo(() => STACKS.map((s) => ({ id: s.id, title: s.title })), []);
   const topics = useMemo(() => TOPIC_BANK[stackChoice] || TOPIC_BANK.default, [stackChoice]);
@@ -301,6 +306,37 @@ export default function DebugLab({ selectedStack, userLevel = 'Beginner' }) {
     setUsedChallengeKeys([]);
     setLastChallengeKey('');
   }, [stackChoice]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadLeaderboard = async ({ silent = false } = {}) => {
+      if (!silent) setLeaderboardLoading(true);
+      try {
+        const res = await fetch('/api/v1/issue-lab/leaderboard', { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || 'Failed to load leaderboard');
+        if (!active) return;
+        setWinner(data?.winner || null);
+        setLeaderboard(Array.isArray(data?.leaderboard) ? data.leaderboard : []);
+        setLeaderboardUpdatedAt(data?.generatedAt ? new Date(data.generatedAt) : new Date());
+        setLeaderboardError('');
+      } catch (err) {
+        if (!active) return;
+        setLeaderboardError(err.message || 'Leaderboard unavailable');
+      } finally {
+        if (active) setLeaderboardLoading(false);
+      }
+    };
+
+    loadLeaderboard();
+    const timer = setInterval(() => loadLeaderboard({ silent: true }), 10000);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   const pickChallenge = (nextLevel, qNumber, topic, usedKeys, previousKey) => {
     const bank = CHALLENGE_BANK[nextLevel] || CHALLENGE_BANK.beginner;
@@ -326,6 +362,15 @@ export default function DebugLab({ selectedStack, userLevel = 'Beginner' }) {
     }
 
     return { challenge: fallback, key: fallbackKey };
+  };
+
+  const resetCode = () => {
+    if (challenge) {
+      setCode(challenge.brokenCode);
+      setResult(null);
+      setLastSubmittedAt(null);
+      setPhase('running');
+    }
   };
 
   const startChallenge = () => {
@@ -362,7 +407,7 @@ export default function DebugLab({ selectedStack, userLevel = 'Beginner' }) {
 
       const mergedScore = Math.round(((Number(parsed.score) || local.score) + local.score) / 2);
       return {
-        passed: Boolean(parsed.passed) || mergedScore >= 65,
+        passed: Boolean(parsed.passed) && local.passed && mergedScore >= 75,
         score: mergedScore,
         feedback: parsed.feedback || local.feedback,
         aiFeedback: parsed.nextHint || 'Refine edge case handling and retry.',
@@ -385,6 +430,31 @@ export default function DebugLab({ selectedStack, userLevel = 'Beginner' }) {
 
     const local = localEvaluate({ challenge, userCode: code, brokenCode: challenge.brokenCode });
     const ai = await runAiReview({ currentChallenge: challenge, userCode: code, local });
+
+    try {
+      await fetch('/api/v1/issue-lab/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          score: ai.score,
+          passed: ai.passed,
+          stack: stackChoice,
+          topic: topicChoice,
+          level,
+        }),
+      });
+
+      const boardRes = await fetch('/api/v1/issue-lab/leaderboard', { credentials: 'include' });
+      const boardData = await boardRes.json();
+      if (boardRes.ok) {
+        setWinner(boardData?.winner || null);
+        setLeaderboard(Array.isArray(boardData?.leaderboard) ? boardData.leaderboard : []);
+        setLeaderboardUpdatedAt(boardData?.generatedAt ? new Date(boardData.generatedAt) : new Date());
+      }
+    } catch {
+      // keep challenge flow running even if leaderboard persistence fails
+    }
 
     setSessionStats((prev) => {
       const topicKey = topicChoice || 'General';
@@ -471,6 +541,57 @@ export default function DebugLab({ selectedStack, userLevel = 'Beginner' }) {
           </div>
         </div>
       </section>
+
+      {phase === 'setup' && (
+        <section className="border-4 border-black bg-white p-4 md:p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h3 className="text-sm font-black uppercase">Live Leaderboard</h3>
+            <p className="text-[10px] font-black uppercase text-black/50">
+              {leaderboardUpdatedAt ? `Updated ${leaderboardUpdatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Syncing...'}
+            </p>
+          </div>
+
+          {leaderboardLoading ? (
+            <p className="text-xs font-bold uppercase">Loading leaderboard...</p>
+          ) : leaderboardError ? (
+            <p className="text-xs font-bold uppercase text-[#B00020]">{leaderboardError}</p>
+          ) : (
+            <>
+              {winner && (
+                <div className="border-4 border-black bg-[#FFE145] p-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                  <p className="text-[10px] font-black uppercase text-black/60">Current Winner</p>
+                  <p className="text-lg font-black uppercase mt-1">#{winner.rank} {winner.name}</p>
+                  <p className="text-[11px] font-bold uppercase text-black/70 mt-1">Score {winner.totalScore} • Solved {winner.solved} • Accuracy {winner.accuracy}%</p>
+                </div>
+              )}
+
+              <div className="border-2 border-black overflow-hidden">
+                <div className="grid grid-cols-[56px_1.5fr_1fr_1fr_1fr] bg-black text-white text-[10px] font-black uppercase tracking-wider">
+                  <div className="px-2 py-2">Rank</div>
+                  <div className="px-2 py-2">Player</div>
+                  <div className="px-2 py-2">Score</div>
+                  <div className="px-2 py-2">Solved</div>
+                  <div className="px-2 py-2">Accuracy</div>
+                </div>
+
+                {leaderboard.length === 0 ? (
+                  <div className="px-3 py-4 text-xs font-bold">No players yet. Submit first fix to appear here.</div>
+                ) : (
+                  leaderboard.slice(0, 10).map((row) => (
+                    <div key={`${row.rank}-${row.name}`} className="grid grid-cols-[56px_1.5fr_1fr_1fr_1fr] text-xs font-bold border-t-2 border-black/10">
+                      <div className="px-2 py-2">#{row.rank}</div>
+                      <div className="px-2 py-2 truncate" title={row.name}>{row.name}</div>
+                      <div className="px-2 py-2">{row.totalScore}</div>
+                      <div className="px-2 py-2">{row.solved}</div>
+                      <div className="px-2 py-2">{row.accuracy}%</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {phase === 'setup' && (
         <section className="border-4 border-black bg-white p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
@@ -649,13 +770,13 @@ export default function DebugLab({ selectedStack, userLevel = 'Beginner' }) {
               </button>
 
               <button
-                onClick={startChallenge}
+                onClick={resetCode}
                 className="px-4 py-2 border-4 border-black bg-white font-black text-xs uppercase"
               >
                 <RefreshCw size={12} className="inline mr-1" /> Reset
               </button>
 
-              {phase === 'result' && result && (
+              {phase === 'result' && result.passed && (
                 <button
                   onClick={nextQuestion}
                   className="px-4 py-2 border-4 border-black bg-[#33FF66] font-black text-xs uppercase"
@@ -680,8 +801,8 @@ export default function DebugLab({ selectedStack, userLevel = 'Beginner' }) {
                 ) : (
                   <>
                     <p className="text-xs font-black uppercase flex items-center gap-2">
-                      {result.passed ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                      {result.passed ? 'Accepted' : 'Try Again'} • Score {result.score}/100
+                      {result.passed || result.score >= 75 ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                      {result.passed || result.score >= 75 ? 'Accepted' : 'Try Again'}
                     </p>
                     <p className="text-xs font-bold mt-1 text-black/80 truncate" title={result.feedback}>{result.feedback}</p>
                   </>

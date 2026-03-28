@@ -1342,6 +1342,117 @@ async function getPublicProfile(req, res) {
     }
 }
 
+/**
+ * POST /api/v1/issue-lab/submit
+ * Stores a user's Issue Lab attempt for realtime leaderboard ranking.
+ */
+async function submitIssueLabResult(req, res) {
+    try {
+        if (!req.user?._id) {
+            return res.status(401).json({ error: 'Not authenticated' });
+        }
+
+        const score = Math.max(0, Math.min(100, Number(req.body?.score) || 0));
+        const passed = Boolean(req.body?.passed);
+        const topic = String(req.body?.topic || '').trim().slice(0, 80);
+
+        const user = await User.findById(req.user._id).select('issueLab');
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const current = user.issueLab || {};
+        const attempted = (Number(current.attempted) || 0) + 1;
+        const solved = (Number(current.solved) || 0) + (passed ? 1 : 0);
+        
+                // Fixed scoring: +50 if passed, +0 if failed
+                const scoreToAdd = passed ? 50 : 0;
+                const totalScore = (Number(current.totalScore) || 0) + scoreToAdd;
+        
+                const bestScore = Math.max(Number(current.bestScore) || 0, scoreToAdd);
+
+        const nextIssueLab = {
+            attempted,
+            solved,
+            totalScore,
+            bestScore,
+            lastPlayedAt: new Date(),
+            topTopic: topic || current.topTopic || '',
+        };
+
+        await User.updateOne(
+            { _id: req.user._id },
+            {
+                $set: {
+                    issueLab: nextIssueLab,
+                    lastActiveAt: new Date(),
+                },
+            }
+        );
+
+        return res.json({
+            ok: true,
+            issueLab: nextIssueLab,
+        });
+    } catch (err) {
+        console.error('❌ [ISSUE LAB] Submit failed:', err.message);
+        res.status(500).json({ error: 'Failed to save issue lab result', details: err.message });
+    }
+}
+
+/**
+ * GET /api/v1/issue-lab/leaderboard
+ * Returns top issue lab players and current winner.
+ */
+async function getIssueLabLeaderboard(req, res) {
+    try {
+        const users = await User.find({ 'issueLab.attempted': { $gt: 0 } })
+            .select('first_name email github profile_picture issueLab')
+            .sort({
+                'issueLab.totalScore': -1,
+                'issueLab.solved': -1,
+                'issueLab.bestScore': -1,
+                'issueLab.lastPlayedAt': 1,
+            })
+            .limit(20)
+            .lean();
+
+        const leaderboard = (users || []).map((u, idx) => {
+            const issueLab = u.issueLab || {};
+            const attempted = Number(issueLab.attempted) || 0;
+            const solved = Number(issueLab.solved) || 0;
+            const totalScore = Number(issueLab.totalScore) || 0;
+            const bestScore = Number(issueLab.bestScore) || 0;
+            const accuracy = attempted > 0 ? Math.round((solved / attempted) * 100) : 0;
+            const avgScore = attempted > 0 ? Math.round(totalScore / attempted) : 0;
+
+            return {
+                rank: idx + 1,
+                name: u.first_name || u.github?.username || u.email?.split('@')[0] || 'Cadet',
+                avatar: u.profile_picture || '',
+                username: u.github?.username || '',
+                attempted,
+                solved,
+                totalScore,
+                bestScore,
+                avgScore,
+                accuracy,
+                topTopic: issueLab.topTopic || 'General',
+                lastPlayedAt: issueLab.lastPlayedAt || null,
+            };
+        });
+
+        return res.json({
+            winner: leaderboard[0] || null,
+            leaderboard,
+            generatedAt: new Date().toISOString(),
+        });
+    } catch (err) {
+        console.error('❌ [ISSUE LAB] Leaderboard fetch failed:', err.message);
+        res.status(500).json({ error: 'Failed to fetch issue lab leaderboard', details: err.message });
+    }
+}
+
 module.exports = {
     generateDiagnostic,
     submitDiagnostic,
@@ -1352,4 +1463,6 @@ module.exports = {
     resetMission,
     getMissionHistory,
     getPublicProfile,
+    submitIssueLabResult,
+    getIssueLabLeaderboard,
 };

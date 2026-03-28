@@ -321,7 +321,7 @@ export default function AnalyzerPanel({ selectedStack }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ stack: stackPayload }),
+        body: JSON.stringify({ stack: stackPayload, model: 'nvidia' }),
       });
 
       const data = await res.json();
@@ -379,7 +379,7 @@ export default function AnalyzerPanel({ selectedStack }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ repoUrl }),
+        body: JSON.stringify({ repoUrl, model: 'nvidia' }),
       });
 
       const data = await res.json();

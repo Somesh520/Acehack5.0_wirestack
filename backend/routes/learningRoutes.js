@@ -29,6 +29,8 @@ const {
     resetMission,
     getMissionHistory,
     getPublicProfile,
+    submitIssueLabResult,
+    getIssueLabLeaderboard,
 } = require('../controllers/learningController');
 
 // ─── Diagnostic Test ─────────────────────────────────────────
@@ -46,6 +48,10 @@ router.get('/progress', requireAuth, getProgress);
 // ─── Mission Management ──────────────────────────────────────
 router.post('/mission/reset', requireAuth, resetMission);
 router.get('/mission/history', requireAuth, getMissionHistory);
+
+// ─── Issue Lab Leaderboard ────────────────────────────────────
+router.post('/issue-lab/submit', requireAuth, submitIssueLabResult);
+router.get('/issue-lab/leaderboard', requireAuth, getIssueLabLeaderboard);
 
 // ─── Public Profile (No Auth Required) ────────────────────────
 router.get('/public/profile/:username', getPublicProfile);

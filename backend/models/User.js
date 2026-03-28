@@ -121,6 +121,18 @@ const userSchema = new mongoose.Schema({
     lastActiveAt: Date,
 
     /**
+     * Issue Lab performance stats used by realtime leaderboard.
+     */
+    issueLab: {
+        attempted: { type: Number, default: 0 },
+        solved: { type: Number, default: 0 },
+        totalScore: { type: Number, default: 0 },
+        bestScore: { type: Number, default: 0 },
+        lastPlayedAt: { type: Date, default: null },
+        topTopic: { type: String, default: '' },
+    },
+
+    /**
      * AI-Generated Dynamic Roadmap.
      * Stores the custom modules created specifically for this user's IQ Check.
      */
