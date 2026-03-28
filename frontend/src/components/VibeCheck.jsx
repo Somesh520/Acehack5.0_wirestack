@@ -1,8 +1,73 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, CheckCircle, XCircle, MessageSquare, ArrowRight, Shield, Lock, Unlock, Brain } from 'lucide-react';
+import { Send, CheckCircle, XCircle, MessageSquare, ArrowRight, Shield, Lock, Unlock, Brain, Lightbulb, AlertCircle } from 'lucide-react';
 
 const API_BASE = '';
+
+// Client-side validation - detect wrong code IMMEDIATELY without LLM
+function performQuickValidation(code, module) {
+    const issues = [];
+    
+    if (!code || code.trim().length === 0) {
+        issues.push('Code is empty - write something first');
+        return { hasErrors: true, issues, mustUse: [] };
+    }
+
+    // Check for common placeholder patterns
+    if (/WRITE\s+YOUR\s+CODE|TODO|IMPLEMENT|YOUR\s+CODE\s+HERE|FILL\s+THIS/i.test(code) && code.split('\n').length < 5) {
+        issues.push('Looks like a template - replace placeholder comments with actual code');
+    }
+
+    // Check if code has any actual logic/keywords
+    const hasLogic = /function\s+|const\s+|let\s+|var\s+|if\s*\(|for\s*\(|while\s*\(|return\s+|=>|class\s+|async\s+|await\s+/i.test(code);
+    if (!hasLogic) {
+        issues.push('No JavaScript logic detected - add functions, variables, or control flow');
+    }
+
+    // Check for required keywords from mustUse
+    const mustUse = module?.mustUse || [];
+    const usedKeywords = [];
+    const missingKeywords = [];
+
+    mustUse.forEach(keyword => {
+        const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        if (regex.test(code)) {
+            usedKeywords.push(keyword);
+        } else {
+            missingKeywords.push(keyword);
+        }
+    });
+
+    if (missingKeywords.length > 0 && mustUse.length > 0) {
+        const missing = missingKeywords.slice(0, 2).join(', ');
+        issues.push(`Missing required: ${missing}`);
+    }
+
+    // Check for syntax errors (basic)
+    try {
+        // Count brackets
+        const openBrace = (code.match(/{/g) || []).length;
+        const closeBrace = (code.match(/}/g) || []).length;
+        const openParen = (code.match(/\(/g) || []).length;
+        const closeParen = (code.match(/\)/g) || []).length;
+
+        if (openBrace !== closeBrace) {
+            issues.push(`Bracket mismatch: ${openBrace} open, ${closeBrace} close`);
+        }
+        if (openParen !== closeParen) {
+            issues.push(`Parenthesis mismatch: ${openParen} open, ${closeParen} close`);
+        }
+    } catch (e) {
+        // ignore
+    }
+
+    return {
+        hasErrors: issues.length > 0,
+        issues,
+        usedKeywords,
+        missingKeywords
+    };
+}
 
 function inferLocalLineReference(code) {
     if (!code || typeof code !== 'string') return 'line 1';
@@ -73,6 +138,12 @@ export default function VibeCheck({ module, submittedCode, onPass, onFail, onBac
     const [finalResult, setFinalResult] = useState(null);
     const [error, setError] = useState(null);
     const [clipboardWarning, setClipboardWarning] = useState('');
+    const [submissionTime, setSubmissionTime] = useState(null);
+    const [attemptCount, setAttemptCount] = useState(1);
+    const [showHint, setShowHint] = useState(false);
+    const [validationErrors, setValidationErrors] = useState(null);
+    const [lastSubmittedCode, setLastSubmittedCode] = useState('');
+    const [resubmittedSameCode, setResubmittedSameCode] = useState(false);
     const effectiveModuleId = module?.moduleId || module?._id;
     const focusInfo = resolveFocusLine(submittedCode, vibeResult);
     const activeLineRef = `line ${focusInfo.lineNumber}`;
@@ -82,6 +153,21 @@ export default function VibeCheck({ module, submittedCode, onPass, onFail, onBac
     useEffect(() => {
         if (!submittedCode || !effectiveModuleId) return;
 
+        // CHECK: Did they submit the exact same code twice without fixing?
+        if (lastSubmittedCode === submittedCode && attemptCount > 1) {
+            setResubmittedSameCode(true);
+            setPhase('question');
+            return;
+        }
+
+        setResubmittedSameCode(false);
+        setLastSubmittedCode(submittedCode);
+
+        // FIRST: Run client-side validation to get warnings
+        const validation = performQuickValidation(submittedCode, module);
+        setValidationErrors(validation.hasErrors ? validation : null);
+
+        // ALWAYS send to backend for AI analysis (validation errors are just warnings)
         fetch(`${API_BASE}/api/v1/challenge/vibe-check`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -98,6 +184,7 @@ export default function VibeCheck({ module, submittedCode, onPass, onFail, onBac
             })
             .then(data => {
                 setVibeResult(data);
+                setSubmissionTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
                 setPhase('question');
             })
             .catch(err => {
@@ -182,7 +269,20 @@ export default function VibeCheck({ module, submittedCode, onPass, onFail, onBac
                             <div className="flex-1 border-b-4 border-dashed border-gray-200" />
                         </div>
 
-                        {/* Code Feedback */}
+                        {/* CLIENT-SIDE VALIDATION WARNINGS */}
+                        {validationErrors && (
+                            <div className="border-4 border-[#FFA500] bg-[#FFF8E7] p-4 text-black">
+                                <p className="text-xs font-black uppercase mb-2 text-[#FF6B00]">⚠️ CODE QUALITY WARNINGS (from client):</p>
+                                <div className="space-y-1">
+                                    {validationErrors.issues.map((issue, idx) => (
+                                        <p key={idx} className="text-xs font-bold text-[#662D00]">• {issue}</p>
+                                    ))}
+                                </div>
+                                <p className="text-[10px] font-bold mt-2 text-black/60">👉 You can still submit, but consider fixing these first.</p>
+                            </div>
+                        )}
+
+                        {/* AI Code Feedback */}
                         {vibeResult && (
                             <div className={`border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] ${vibeResult.isCorrect ? 'bg-[#33FF66]' : 'bg-[#FF3366] text-white'}`}>
                                 <div className="flex items-center gap-3 mb-4">
@@ -211,108 +311,212 @@ export default function VibeCheck({ module, submittedCode, onPass, onFail, onBac
                             </div>
                         )}
 
-                        {/* THE VIBE QUESTION CARD */}
-                        <div className="bg-[#FFD700] border-4 border-black p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                                <h3 className="font-black text-xs uppercase flex items-center gap-2 bg-black text-white px-3 py-1 inline-flex">
-                                    <MessageSquare size={14} /> The Vibe Question
-                                </h3>
-                                <span className="text-[10px] font-black uppercase text-black/70 tracking-widest">Answer should be line-specific</span>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-                                <div className="md:col-span-2 border-4 border-black bg-white overflow-hidden" onCopy={blockClipboardAction} onCut={blockClipboardAction} onPaste={blockClipboardAction} onContextMenu={blockClipboardAction}>
-                                    <div className="px-3 py-2 bg-black text-white text-[10px] font-black uppercase tracking-wide">
-                                        Referenced Code ({activeLineRef})
+                        {vibeResult?.isCorrect ? (
+                            <>
+                                {/* THE VIBE QUESTION CARD */}
+                                <div className="bg-[#FFD700] border-4 border-black p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <h3 className="font-black text-xs uppercase flex items-center gap-2 bg-black text-white px-3 py-1 inline-flex">
+                                            <MessageSquare size={14} /> The Vibe Question
+                                        </h3>
+                                        <span className="text-[10px] font-black uppercase text-black/70 tracking-widest">Answer should be line-specific</span>
                                     </div>
-                                    <pre className="px-4 py-3 text-sm font-black leading-relaxed whitespace-pre-wrap break-words select-none">{activeCodeLine || 'No code line detected.'}</pre>
-                                </div>
-                                <div className="md:col-span-3 bg-white border-4 border-black p-5" onCopy={blockClipboardAction} onCut={blockClipboardAction} onPaste={blockClipboardAction} onContextMenu={blockClipboardAction}>
-                                    <p className="text-lg md:text-xl font-black leading-tight tracking-tight">
-                                        {vibeResult?.vibeQuestion || buildLocalVibeQuestion(submittedCode, module?.concept)}
-                                    </p>
-                                </div>
-                            </div>
 
-                            {submittedCode && (
-                                <details className="mb-4 border-4 border-black bg-white overflow-hidden group" onCopy={blockClipboardAction} onCut={blockClipboardAction} onPaste={blockClipboardAction} onContextMenu={blockClipboardAction}>
-                                    <summary className="px-4 py-2 bg-[#111] text-white text-[10px] font-black uppercase tracking-wide cursor-pointer list-none flex items-center justify-between">
-                                        <span>Full Submitted Code {focusInfo.source === 'token-match' ? `(matched: ${focusInfo.token})` : ''}</span>
-                                        <span className="group-open:rotate-90 transition-transform">&gt;</span>
-                                    </summary>
-                                    <div className="px-4 py-1 text-[10px] font-black uppercase tracking-wide text-black/50 border-b-2 border-black/10 bg-[#f8f8f8]">
-                                        Expand to inspect complete code context
+                                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                                        <div className="md:col-span-2 border-4 border-black bg-white overflow-hidden" onCopy={blockClipboardAction} onCut={blockClipboardAction} onPaste={blockClipboardAction} onContextMenu={blockClipboardAction}>
+                                            <div className="px-3 py-2 bg-black text-white text-[10px] font-black uppercase tracking-wide">
+                                                Referenced Code ({activeLineRef})
+                                            </div>
+                                            <pre className="px-4 py-3 text-sm font-black leading-relaxed whitespace-pre-wrap break-words select-none">{activeCodeLine || 'No code line detected.'}</pre>
+                                        </div>
+                                        <div className="md:col-span-3 bg-white border-4 border-black p-5" onCopy={blockClipboardAction} onCut={blockClipboardAction} onPaste={blockClipboardAction} onContextMenu={blockClipboardAction}>
+                                            <p className="text-lg md:text-xl font-black leading-tight tracking-tight">
+                                                {vibeResult?.vibeQuestion || buildLocalVibeQuestion(submittedCode, module?.concept)}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="max-h-56 overflow-y-auto">
-                                        {codeLines.map((line, index) => {
-                                            const lineNo = index + 1;
-                                            const isFocus = lineNo === focusInfo.lineNumber;
-                                            return (
-                                                <div
-                                                    key={lineNo}
-                                                    className={`grid grid-cols-[48px_1fr] gap-3 px-3 py-1 text-[12px] font-bold leading-relaxed ${isFocus ? 'bg-[#FFF4B2]' : 'bg-white'}`}
-                                                >
-                                                    <span className={`text-right ${isFocus ? 'text-black font-black' : 'text-black/40'}`}>{lineNo}</span>
-                                                    <pre className="whitespace-pre-wrap break-words select-none">{line || ' '}</pre>
-                                                </div>
-                                            );
-                                        })}
+
+                                    {submittedCode && (
+                                        <details className="mb-4 border-4 border-black bg-white overflow-hidden group" onCopy={blockClipboardAction} onCut={blockClipboardAction} onPaste={blockClipboardAction} onContextMenu={blockClipboardAction}>
+                                            <summary className="px-4 py-2 bg-[#111] text-white text-[10px] font-black uppercase tracking-wide cursor-pointer list-none flex items-center justify-between">
+                                                <span>Full Submitted Code {focusInfo.source === 'token-match' ? `(matched: ${focusInfo.token})` : ''}</span>
+                                                <span className="group-open:rotate-90 transition-transform">&gt;</span>
+                                            </summary>
+                                            <div className="px-4 py-1 text-[10px] font-black uppercase tracking-wide text-black/50 border-b-2 border-black/10 bg-[#f8f8f8]">
+                                                Expand to inspect complete code context
+                                            </div>
+                                            <div className="max-h-56 overflow-y-auto">
+                                                {codeLines.map((line, index) => {
+                                                    const lineNo = index + 1;
+                                                    const isFocus = lineNo === focusInfo.lineNumber;
+                                                    return (
+                                                        <div
+                                                            key={lineNo}
+                                                            className={`grid grid-cols-[48px_1fr] gap-3 px-3 py-1 text-[12px] font-bold leading-relaxed ${isFocus ? 'bg-[#FFF4B2]' : 'bg-white'}`}
+                                                        >
+                                                            <span className={`text-right ${isFocus ? 'text-black font-black' : 'text-black/40'}`}>{lineNo}</span>
+                                                            <pre className="whitespace-pre-wrap break-words select-none">{line || ' '}</pre>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </details>
+                                    )}
+
+                                    <div className="bg-white border-4 border-black p-4">
+                                        <div className="text-[10px] font-black uppercase mb-2 text-black/70 tracking-wider">Your answer must cover</div>
+                                        <div className="text-[11px] font-bold leading-relaxed">
+                                            1. Why this line was chosen
+                                        </div>
+                                        <div className="text-[11px] font-bold leading-relaxed">
+                                            2. What exact behavior this line controls
+                                        </div>
+                                        <div className="text-[11px] font-bold leading-relaxed">
+                                            3. What breaks if this line changes or is removed
+                                        </div>
                                     </div>
-                                </details>
-                            )}
-
-                            <div className="bg-white border-4 border-black p-4">
-                                <div className="text-[10px] font-black uppercase mb-2 text-black/70 tracking-wider">Your answer must cover</div>
-                                <div className="text-[11px] font-bold leading-relaxed">
-                                    1. Why this line was chosen
                                 </div>
-                                <div className="text-[11px] font-bold leading-relaxed">
-                                    2. What exact behavior this line controls
-                                </div>
-                                <div className="text-[11px] font-bold leading-relaxed">
-                                    3. What breaks if this line changes or is removed
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Explanation Area */}
-                        <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] overflow-hidden">
-                            <div className="bg-gray-100 px-4 py-2 border-b-2 border-black flex justify-between">
-                                <span className="text-[9px] font-black uppercase text-gray-400">Response Terminal</span>
-                                <span className="text-[9px] font-black uppercase text-gray-400">{explanation.length} Chars</span>
-                            </div>
-                            <textarea
-                                value={explanation}
-                                onChange={(e) => { setExplanation(e.target.value); setError(null); }}
-                                onPaste={blockClipboardAction}
-                                className="w-full h-64 p-6 font-mono text-sm font-bold focus:outline-none bg-white"
-                                placeholder="Explain this line: why you used it, what it does, and what breaks if removed."
-                            />
-                        </div>
+                                {/* Explanation Area */}
+                                <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] overflow-hidden">
+                                    <div className="bg-gray-100 px-4 py-2 border-b-2 border-black flex justify-between">
+                                        <span className="text-[9px] font-black uppercase text-gray-400">Response Terminal</span>
+                                        <span className="text-[9px] font-black uppercase text-gray-400">{explanation.length} Chars</span>
+                                    </div>
+                                    <textarea
+                                        value={explanation}
+                                        onChange={(e) => { setExplanation(e.target.value); setError(null); }}
+                                        onPaste={blockClipboardAction}
+                                        className="w-full h-64 p-6 font-mono text-sm font-bold focus:outline-none bg-white"
+                                        placeholder="Explain this line: why you used it, what it does, and what breaks if removed."
+                                    />
+                                </div>
 
-                        {clipboardWarning && (
-                            <div className="p-4 border-4 border-black bg-[#E3F2FF] text-[#003B70] font-black uppercase text-xs shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                                {clipboardWarning}
+                                {clipboardWarning && (
+                                    <div className="p-4 border-4 border-black bg-[#E3F2FF] text-[#003B70] font-black uppercase text-xs shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                        {clipboardWarning}
+                                    </div>
+                                )}
+
+                                {error && (
+                                    <div className="mb-6 p-4 border-4 border-black bg-[#FF3366] text-white font-black uppercase text-xs shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                        ⚠️ {error}
+                                    </div>
+                                )}
+
+                                <div className="flex gap-4">
+                                    <button onClick={onBack} className="px-8 py-4 border-4 border-black font-black uppercase text-sm hover:bg-gray-50 transition-all">
+                                        Revise Code
+                                    </button>
+                                    <button
+                                        onClick={handleSubmitExplanation}
+                                        className="flex-1 bg-[#00F0FF] border-4 border-black px-8 py-5 font-black text-xl uppercase shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 transition-all flex items-center justify-center gap-3"
+                                    >
+                                        <Send size={20} /> VALIDATE INTEL
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="border-4 border-black bg-white p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                                <div className="mb-4 flex items-center justify-between">
+                                    <h3 className="text-lg font-black uppercase flex items-center gap-2">
+                                        <XCircle size={20} className="text-[#FF3366]" />
+                                        TRY AGAIN
+                                    </h3>
+                                    {submissionTime && (
+                                        <p className="text-[10px] font-black text-black/50 uppercase">
+                                            SUBMITTED AT {submissionTime}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* RE-SUBMISSION WARNING */}
+                                {resubmittedSameCode && (
+                                    <div className="mb-4 p-4 border-4 border-[#FF6B00] bg-[#FFE8D6] text-[#663300] font-black uppercase text-sm">
+                                        <div className="flex items-start gap-3">
+                                            <AlertCircle size={20} className="mt-1 flex-shrink-0" />
+                                            <div>
+                                                <p>YOU RESUBMITTED THE SAME CODE</p>
+                                                <p className="text-xs mt-1 font-bold">You need to CHANGE the code before resubmitting. Use the hint below to guide your fix.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Score Display */}
+                                {vibeResult?.correctnessScore !== undefined && (
+                                    <div className="mb-4 p-3 border-4 border-black bg-[#FFE145] text-black font-black uppercase text-lg">
+                                        SCORE {vibeResult.correctnessScore}/100
+                                    </div>
+                                )}
+
+                                {/* Error Details */}
+                                {vibeResult?.feedback && (
+                                    <div className="mb-4 p-4 border-4 border-black bg-[#FF3366] text-white font-black uppercase text-sm">
+                                        ⚠️ {vibeResult.feedback}
+                                    </div>
+                                )}
+
+                                {/* Code Issues */}
+                                {Array.isArray(vibeResult?.codeIssues) && vibeResult.codeIssues.length > 0 && (
+                                    <div className="mb-4">
+                                        <p className="text-xs font-black uppercase text-black/70 mb-2">Issues Found:</p>
+                                        <div className="space-y-1 bg-[#FFE8E8] p-3 border-2 border-black">
+                                            {vibeResult.codeIssues.slice(0, 3).map((issue, idx) => (
+                                                <p key={idx} className="text-xs font-bold text-[#B00020]">- {issue}</p>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* HINT SECTION - Show when validation errors or low confidence */}
+                                {(validationErrors || vibeResult?.correctnessScore < 50 || resubmittedSameCode) && (
+                                    <div className="mb-4">
+                                        <button
+                                            onClick={() => setShowHint(!showHint)}
+                                            className="w-full px-4 py-3 border-4 border-[#FFD700] bg-[#FFFACD] text-black font-black uppercase text-sm hover:shadow-[4px_4px_0px_0px_rgba(255,215,0,0.5)] transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <Lightbulb size={16} className="text-[#FFD700]" />
+                                            {showHint ? 'HIDE' : 'REQUEST'} HINT
+                                        </button>
+
+                                        {showHint && (
+                                            <motion.div 
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                className="mt-3 p-4 border-4 border-[#FFD700] bg-[#FFFACD] text-black"
+                                            >
+                                                <p className="text-[10px] font-black uppercase text-black/60 mb-2">💡 HINT FROM MODULE:</p>
+                                                <p className="text-sm font-bold leading-relaxed whitespace-pre-wrap">
+                                                    {module?.challenge_hint || 
+                                                     `Focus: Use ${module?.mustUse?.slice(0, 2).join(' and ') || 'the required API'} to solve this.\n\nStart with: ${module?.acceptanceCriteria?.[0] || 'Write clean, intentional code'}`}
+                                                </p>
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Attempt Info */}
+                                {attemptCount > 1 && (
+                                    <div className="mb-4 p-3 border-2 border-black bg-[#F0F0F0] text-[10px] font-black uppercase">
+                                        Attempt #{attemptCount}
+                                    </div>
+                                )}
+
+                                <div className="flex gap-3 mt-5">
+                                    <button 
+                                        onClick={() => {
+                                            setAttemptCount(attemptCount + 1);
+                                            setShowHint(false);
+                                            onBack();
+                                        }} 
+                                        className="flex-1 px-6 py-4 border-4 border-black bg-[#00F0FF] font-black uppercase text-sm hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] transition-all"
+                                    >
+                                        Fix & Retry
+                                    </button>
+                                </div>
                             </div>
                         )}
-
-                        {error && (
-                            <div className="mb-6 p-4 border-4 border-black bg-[#FF3366] text-white font-black uppercase text-xs shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                                ⚠️ {error}
-                            </div>
-                        )}
-
-                        <div className="flex gap-4">
-                            <button onClick={onBack} className="px-8 py-4 border-4 border-black font-black uppercase text-sm hover:bg-gray-50 transition-all">
-                                Revise Code
-                            </button>
-                            <button
-                                onClick={handleSubmitExplanation}
-                                className="flex-1 bg-[#00F0FF] border-4 border-black px-8 py-5 font-black text-xl uppercase shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 transition-all flex items-center justify-center gap-3"
-                            >
-                                <Send size={20} /> VALIDATE INTEL
-                            </button>
-                        </div>
                     </motion.div>
                 )}
 

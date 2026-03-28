@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Loader2, BadgeIndianRupee, Shield, Cpu, Layers, Bug, ClipboardCheck, AlertTriangle, Github, Link2Off, RefreshCw } from 'lucide-react';
+import { Search, Loader2, AlertTriangle, Code, Zap, Layers, Bug, ClipboardCheck, Github, Link2Off, RefreshCw } from 'lucide-react';
 import { STACKS } from '../constants/stacks.jsx';
 
 const STACK_TECH_MAP = {
@@ -786,21 +786,21 @@ export default function AnalyzerPanel({ selectedStack }) {
 
           <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="border-4 border-black bg-[#FFF3CD] p-4 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]">
-              <h4 className="text-[11px] font-black uppercase mb-2 flex items-center gap-2"><BadgeIndianRupee size={14} /> Cost</h4>
-              <p className="text-lg font-black">{analysis.cost?.monthly_estimate || 'N/A'}</p>
-              <p className="text-[11px] font-bold text-black/60">{analysis.cost?.annual_estimate || ''}</p>
+              <h4 className="text-[11px] font-black uppercase mb-2 flex items-center gap-2"><AlertTriangle size={14} /> Hardcoded Logic</h4>
+              <p className="text-lg font-black">{analysis.hardcoded_logic?.severity || 'Low'}</p>
+              <p className="text-[11px] font-bold text-black/60">{analysis.hardcoded_logic?.issues?.[0] || 'Low maintainability risk'}</p>
             </div>
 
             <div className="border-4 border-black bg-[#E8FFE8] p-4 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]">
-              <h4 className="text-[11px] font-black uppercase mb-2 flex items-center gap-2"><Shield size={14} /> Security</h4>
-              <p className="text-lg font-black">Score {analysis.security?.score || 'N/A'}</p>
-              <p className="text-[11px] font-bold text-black/60">{analysis.security?.critical_fixes?.[0] || 'No critical fix listed'}</p>
+              <h4 className="text-[11px] font-black uppercase mb-2 flex items-center gap-2"><Code size={14} /> Code Quality</h4>
+              <p className="text-lg font-black">Score {analysis.code_quality?.score || 'N/A'}</p>
+              <p className="text-[11px] font-bold text-black/60">{analysis.code_quality?.recommendations?.[0] || 'No issues detected'}</p>
             </div>
 
             <div className="border-4 border-black bg-[#E8F2FF] p-4 shadow-[5px_5px_0px_0px_rgba(0,0,0,1)]">
-              <h4 className="text-[11px] font-black uppercase mb-2 flex items-center gap-2"><Cpu size={14} /> Scalability</h4>
-              <p className="text-lg font-black">Score {analysis.scalability?.score || 'N/A'}</p>
-              <p className="text-[11px] font-bold text-black/60">{analysis.scalability?.max_concurrent_users || 'Unknown range'}</p>
+              <h4 className="text-[11px] font-black uppercase mb-2 flex items-center gap-2"><Zap size={14} /> Performance</h4>
+              <p className="text-lg font-black">{analysis.performance?.status || 'Optimal'}</p>
+              <p className="text-[11px] font-bold text-black/60">{analysis.performance?.issues?.[0] || 'No bottlenecks detected'}</p>
             </div>
           </section>
 

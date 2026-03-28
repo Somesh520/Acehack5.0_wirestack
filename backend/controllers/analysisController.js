@@ -9,7 +9,7 @@ const { parseJsonFromLLM } = require('../utils/llmResponseParser');
 const VERBOSE_AI_LOGS = process.env.VERBOSE_AI_LOGS === 'true';
 
 /** Standard fallback shape for analysis responses */
-const ANALYSIS_FALLBACK = { cost: null, security: null, scalability: null, architecture: null, code_quality: null };
+const ANALYSIS_FALLBACK = { hardcoded_logic: null, code_quality: null, performance: null, architecture: null };
 
 // ─── File selection patterns ─────────────────────────────────
 
@@ -484,17 +484,15 @@ async function fetchGithubCodeqlAlerts(req, res) {
 const ANALYSIS_JSON_SCHEMA = `{
   "summary": "2-3 sentence overview",
   "detected_stack": ["tech1", "tech2"],
-  "cost": {
-    "monthly_estimate": "$XX - $XX/month",
-    "breakdown": [{ "service": "name", "provider": "AWS/GCP/Vercel/etc", "cost": "$X/mo", "note": "why" }],
-    "free_tier_possible": true,
-    "annual_estimate": "$XXX - $XXX/year",
-    "tip": "cost saving tip"
+  "hardcoded_logic": {
+    "severity": "Low/Medium/High",
+    "issues": ["specific hardcoded patterns found"],
+    "recommendations": ["refactor to config-driven approach", "use environment variables"],
+    "impact": "maintainability risk assessment"
   },
-  "security": { "score": "A/B/C/D", "strengths": [], "vulnerabilities": [], "critical_fixes": [], "recommendations": [] },
-  "scalability": { "score": "A/B/C/D", "max_concurrent_users": "range", "bottlenecks": [], "improvements": [] },
-  "architecture": { "pattern": "monolith/microservices/serverless", "strengths": [], "weaknesses": [], "missing_components": [], "production_checklist": [] },
-  "code_quality": { "score": "A/B/C/D", "issues": [], "suggestions": [] }
+  "code_quality": { "score": "A/B/C/D", "issues": [], "recommendations": [], "patterns": [] },
+  "performance": { "status": "Optimal/Warning/Critical", "issues": [], "bottlenecks": [], "optimizations": [] },
+  "architecture": { "pattern": "monolith/microservices/serverless", "strengths": [], "weaknesses": [], "missing_components": [], "production_checklist": [] }
 }`;
 
 /**

@@ -28,6 +28,7 @@ const {
     getProgress,
     resetMission,
     getMissionHistory,
+    getPublicProfile,
 } = require('../controllers/learningController');
 
 // ─── Diagnostic Test ─────────────────────────────────────────
@@ -45,5 +46,8 @@ router.get('/progress', requireAuth, getProgress);
 // ─── Mission Management ──────────────────────────────────────
 router.post('/mission/reset', requireAuth, resetMission);
 router.get('/mission/history', requireAuth, getMissionHistory);
+
+// ─── Public Profile (No Auth Required) ────────────────────────
+router.get('/public/profile/:username', getPublicProfile);
 
 module.exports = router;

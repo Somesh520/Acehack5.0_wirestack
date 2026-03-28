@@ -638,7 +638,7 @@ const EditorPanel = ({ files, generationStatus, jobId }) => {
                                     <div className="flex items-center gap-3">
                                         <span className={`text-[11px] font-black uppercase tracking-widest ${isTerminalOpen ? 'text-black' : 'text-gray-400'}`}>Terminal</span>
                                         <span className="text-[11px] font-black uppercase tracking-widest text-gray-400">Output</span>
-                                        <span className="text-[11px] font-black uppercase tracking-widest text-gray-400">Debug</span>
+                                        <span className="text-[11px] font-black uppercase tracking-widest text-gray-400">Issues</span>
                                     </div>
                                     <button className="p-1 hover:bg-gray-200">
                                         {isTerminalOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}

@@ -19,7 +19,7 @@ export default function LearningRoom({ module, onSubmitCode, onBack }) {
         return [
             `Why is ${module?.concept || 'this approach'} suitable for this challenge?`,
             'What trade-off did you accept, and what alternative did you reject?',
-            'If this breaks in production, which line will you debug first and why?'
+            'If this breaks in production, which line will you inspect first to isolate the issue and why?'
         ];
     }, [module]);
     const mustUse = useMemo(() => {

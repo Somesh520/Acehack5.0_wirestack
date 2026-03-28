@@ -11,6 +11,7 @@ import LearningSidebar from './LearningSidebar';
 import MissionHistory from './MissionHistory';
 import DebugLab from './DebugLab';
 import AnalyzerPanel from './AnalyzerPanel';
+import ProfilePage from './ProfilePage';
 
 import { STACKS } from '../constants/stacks.jsx';
 
@@ -47,7 +48,7 @@ export default function LearnPage() {
         try {
             const params = new URLSearchParams(window.location.search);
             const requested = params.get('phase');
-            if (requested === 'analyzer' || requested === 'debug_lab' || requested === 'history') {
+            if (requested === 'analyzer' || requested === 'debug_lab' || requested === 'history' || requested === 'profile') {
                 return requested;
             }
             return null;
@@ -212,6 +213,8 @@ export default function LearnPage() {
             setPhase('debug_lab');
         } else if (targetPhase === 'analyzer') {
             setPhase('analyzer');
+        } else if (targetPhase === 'profile') {
+            setPhase('profile');
         } else if (targetPhase === 'new_mission') {
             // Call backend to reset/archive current mission
             if (window.confirm('Archive current mission and start a new one?')) {
@@ -368,6 +371,12 @@ export default function LearnPage() {
                 return (
                     <AnalyzerPanel
                         selectedStack={selectedStack}
+                    />
+                );
+            case 'profile':
+                return (
+                    <ProfilePage
+                        user={user}
                     />
                 );
             default:

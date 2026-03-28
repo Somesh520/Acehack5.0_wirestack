@@ -9,8 +9,55 @@ const openai = process.env.NVIDIA_API_KEY
     : null;
 const OLLAMA_ENABLED = false; // Ollama disabled as per request
 const VERBOSE_AI_LOGS = process.env.VERBOSE_AI_LOGS === 'true';
+const providerCooldownUntilGlobal = new Map(); // provider -> epoch ms (persists for process lifetime)
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+function isRateLimitError(err) {
+    const msg = String(err?.message || '').toLowerCase();
+    return err?.status === 429 || msg.includes('rate limit') || msg.includes('rate_limit_exceeded');
+}
+
+function isHardQuotaError(err) {
+    const msg = String(err?.message || '').toLowerCase();
+    return msg.includes('tokens per day') || msg.includes('quota') || msg.includes('service tier');
+}
+
+function parseRetryAfterSeconds(errMessage) {
+    const message = String(errMessage || '').toLowerCase();
+
+    // Handles patterns like "try again in 5h33m3.456s"
+    const hmsMatch = message.match(/try again in\s*((?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?)/i);
+    if (hmsMatch && hmsMatch[1]) {
+        const chunk = hmsMatch[1];
+        const hours = Number((chunk.match(/(\d+(?:\.\d+)?)h/) || [])[1] || 0);
+        const mins = Number((chunk.match(/(\d+(?:\.\d+)?)m/) || [])[1] || 0);
+        const secs = Number((chunk.match(/(\d+(?:\.\d+)?)s/) || [])[1] || 0);
+        const total = Math.round((hours * 3600) + (mins * 60) + secs);
+        if (total > 0) return total;
+    }
+
+    // Handles patterns like "try again in 12.5s"
+    const secMatch = message.match(/try again in\s*([\d\.]+)s/i);
+    if (secMatch && secMatch[1]) {
+        return Math.ceil(Number(secMatch[1]));
+    }
+
+    return null;
+}
+
+function getProviderCooldownRemaining(provider) {
+    const until = providerCooldownUntilGlobal.get(provider) || 0;
+    const remainingMs = until - Date.now();
+    return remainingMs > 0 ? remainingMs : 0;
+}
+
+function setProviderCooldown(provider, seconds) {
+    if (!provider || !seconds || seconds <= 0) return;
+    const nextUntil = Date.now() + (seconds * 1000);
+    const current = providerCooldownUntilGlobal.get(provider) || 0;
+    providerCooldownUntilGlobal.set(provider, Math.max(current, nextUntil));
+}
 
 function withTimeout(promise, ms, label) {
     let timeoutId;
@@ -33,15 +80,43 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
         { provider: 'gemini', modelId: 'gemini-1.5-pro', engineName: 'Gemini (1.5 Pro)' }
     ];
 
-    const modelsToTry = cloudModels;
+    const modelsToTry = cloudModels.filter((modelOpt) => {
+        if (modelOpt.provider === 'groq') return Boolean(process.env.GROQ_API_KEY && groq);
+        if (modelOpt.provider === 'nvidia') return Boolean(process.env.NVIDIA_API_KEY && openai);
+        if (modelOpt.provider === 'gemini') return Boolean(process.env.GEMINI_API_KEY);
+        return false;
+    });
 
-    console.log(`🧠 AI REQUEST | Mode: ${preferredModel || 'AUTO'} | Providers: ${modelsToTry.map(m => m.provider).join(' -> ')}`);
+    if (modelsToTry.length === 0) {
+        throw new Error('No AI providers configured (missing GROQ/NVIDIA/GEMINI keys)');
+    }
+
+    console.log(`🧠 AI REQUEST | Mode: ${preferredModel || 'AUTO'} | Providers: ${modelsToTry.map(m => `${m.provider}:${m.modelId}`).join(' -> ')}`);
 
     let lastError = null;
+    const providerCooldownUntil = new Map(); // provider -> epoch ms
 
     for (let attempt = 1; attempt <= retries; attempt++) {
         for (const modelOpt of modelsToTry) {
             if (preferredModel && preferredModel !== modelOpt.provider) continue;
+
+            const globalCooldownRemaining = getProviderCooldownRemaining(modelOpt.provider);
+            if (globalCooldownRemaining > 0) {
+                if (VERBOSE_AI_LOGS) {
+                    const remainingSec = Math.ceil(globalCooldownRemaining / 1000);
+                    console.log(`⏭️ Skipping ${modelOpt.engineName} due to global cooldown (${remainingSec}s remaining)`);
+                }
+                continue;
+            }
+
+            const cooldownUntil = providerCooldownUntil.get(modelOpt.provider) || 0;
+            if (Date.now() < cooldownUntil) {
+                if (VERBOSE_AI_LOGS) {
+                    const remainingSec = Math.ceil((cooldownUntil - Date.now()) / 1000);
+                    console.log(`⏭️ Skipping ${modelOpt.engineName} due to cooldown (${remainingSec}s remaining)`);
+                }
+                continue;
+            }
 
             try {
                 if (VERBOSE_AI_LOGS) {
@@ -89,15 +164,23 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
                 console.warn(`⚠️ ${modelOpt.engineName} failed (attempt ${attempt}/${retries}):`, err.message);
                 lastError = err;
 
-                // Handle Groq/Gemini Rate Limits gracefully
-                if (err.status === 429 || (err.message && err.message.toLowerCase().includes('rate limit'))) {
-                    let waitSeconds = 12; // default wait
-                    const match = err.message.match(/try again in ([\d\.]+)s/i);
-                    if (match && match[1]) {
-                        waitSeconds = parseFloat(match[1]) + 1; // Parse exact wait time and add 1s buffer
+                // Handle rate limits: short waits sleep; hard quotas get provider cooldown for this request.
+                if (isRateLimitError(err)) {
+                    const parsedWait = parseRetryAfterSeconds(err.message);
+                    const waitSeconds = parsedWait || 12;
+                    const shouldCooldownProvider = isHardQuotaError(err) || waitSeconds > 90;
+
+                    if (shouldCooldownProvider) {
+                        providerCooldownUntil.set(modelOpt.provider, Date.now() + (waitSeconds * 1000));
+                        setProviderCooldown(modelOpt.provider, waitSeconds);
+                        if (VERBOSE_AI_LOGS) {
+                            console.log(`🚫 ${modelOpt.provider} cooled down for ~${waitSeconds}s due to quota/rate-limit. Trying next provider.`);
+                        }
+                        continue;
                     }
+
                     if (VERBOSE_AI_LOGS) {
-                        console.log(`🐌 Rate Limited! Enforcing mandatory ${waitSeconds.toFixed(1)}s cooldown...`);
+                        console.log(`🐌 Temporary rate limit on ${modelOpt.provider}. Waiting ${waitSeconds}s before continuing...`);
                     }
                     await sleep(waitSeconds * 1000);
                 }

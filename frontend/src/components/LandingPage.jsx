@@ -571,7 +571,7 @@ const LandingPage = () => (
                         <div className="px-6 py-4 text-xs font-black uppercase tracking-widest text-center" style={{ color: NEO.green, borderLeft: '2px solid #333' }}>Engineer</div>
                     </div>
                     <CmpRow label="Writes Code" vibe="Copies & pastes" eng="Types from memory" />
-                    <CmpRow label="Debugging" vibe="Panics, asks LLM" eng="Reads error, traces logic" />
+                    <CmpRow label="Issue Handling" vibe="Panics, asks LLM" eng="Reads error, traces logic" />
                     <CmpRow label="Without IDE" vibe="Completely lost" eng="Works comfortably" />
                     <CmpRow label="LLM Reliance" vibe="Daily crutch" eng="Design tool only" />
                     <CmpRow label="In Interviews" vibe="Can't explain code" eng="Walks through it cold" />

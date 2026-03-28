@@ -456,7 +456,7 @@ export default function DebugLab({ selectedStack, userLevel = 'Beginner' }) {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <Bug size={20} />
-            <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">Debug Lab Arena</h2>
+            <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">Issue Lab Arena</h2>
           </div>
           <div className="flex items-center gap-2">
             <div className="px-3 py-1 border-2 border-black bg-[#FFE145] text-[11px] font-black uppercase">Level: {level}</div>
@@ -474,7 +474,7 @@ export default function DebugLab({ selectedStack, userLevel = 'Beginner' }) {
 
       {phase === 'setup' && (
         <section className="border-4 border-black bg-white p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-          <h3 className="text-sm font-black uppercase mb-4">Choose Debug Track</h3>
+          <h3 className="text-sm font-black uppercase mb-4">Choose Issue Track</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-[11px] font-black uppercase mb-2 block">Stack</label>
@@ -514,7 +514,7 @@ export default function DebugLab({ selectedStack, userLevel = 'Beginner' }) {
         <section className="border-4 border-black bg-white p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] space-y-5">
           <div>
             <h3 className="text-lg font-black uppercase">Session Stopped</h3>
-            <p className="text-xs font-bold text-black/60 mt-1 uppercase">Your debugging mastery snapshot</p>
+            <p className="text-xs font-bold text-black/60 mt-1 uppercase">Your issue-solving mastery snapshot</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">

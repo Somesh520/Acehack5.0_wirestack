@@ -143,18 +143,38 @@ function inferLineReference(submittedCode) {
     }
 
     const lines = submittedCode.split('\n');
-    const targetIndex = lines.findIndex((line) => {
+    const isNoiseLine = (trimmed) => {
+        if (!trimmed) return true;
+        if (/^(import|export|function\s+\w+\s*\(|const\s+\[|const\s+\w+\s*=\s*useState\s*\(|let\s+\w+\s*=\s*\{|var\s+)/.test(trimmed)) return true;
+        if (/^\/\//.test(trimmed)) return true;
+        if (/TODO|placeholder|implement/i.test(trimmed)) return true;
+        return false;
+    };
+
+    const strongSignal = lines.findIndex((line) => {
         const trimmed = line.trim();
-        if (!trimmed || /^import\s+/.test(trimmed) || /^export\s+/.test(trimmed)) return false;
-        return /(useEffect|useState|map\(|filter\(|reduce\(|try\s*\{|await\s+|onChange|set[A-Z]|if\s*\(|return\s+)/.test(trimmed);
+        if (isNoiseLine(trimmed)) return false;
+        return /(if\s*\(|\?\s*.*:\s*|switch\s*\(|try\s*\{|catch\s*\(|await\s+|map\(|filter\(|reduce\(|onClick|onChange|set[A-Z]\w*\(|return\s*<|return\s*\(|throw\s+)/.test(trimmed);
     });
-    const lineNo = targetIndex >= 0 ? targetIndex + 1 : 1;
+
+    const fallbackSignal = lines.findIndex((line) => {
+        const trimmed = line.trim();
+        if (isNoiseLine(trimmed)) return false;
+        return /(return\s+|=\s*>|\w+\s*\(|\.)/.test(trimmed);
+    });
+
+    const lineNo = strongSignal >= 0 ? strongSignal + 1 : (fallbackSignal >= 0 ? fallbackSignal + 1 : 1);
     return `line ${lineNo}`;
 }
 
 function buildFallbackVibeQuestion(submittedCode, concept) {
     const lineRef = inferLineReference(submittedCode);
+    const lineNo = Number((lineRef.match(/(\d+)/) || [])[1] || 1);
+    const codeLine = String(submittedCode || '').split('\n')[lineNo - 1]?.trim() || '';
     const safeConcept = concept || 'this concept';
+    if (codeLine) {
+        return `On ${lineRef}, why did you write \`${codeLine}\` for ${safeConcept}, and what exact behavior changes if this line is removed or rewritten?`;
+    }
     return `On ${lineRef}, why did you choose this ${safeConcept} approach? What behavior would change if that line was removed or rewritten differently?`;
 }
 
@@ -862,8 +882,15 @@ Review this code against official documentation patterns:
             ? result.lineReference.trim()
             : inferLineReference(submittedCode);
 
-        // Validate the vibe question exists and is line-specific
-        if (!result.vibeQuestion || !/line\s*\d+/i.test(result.vibeQuestion)) {
+        const aiMarkedCorrect = Boolean(result.isCorrect);
+        const score = Number(result.correctnessScore) || 0;
+        const hasBlockingIssues = validationIssues.length > 0;
+        const requiresCodeRevision = hasBlockingIssues || !aiMarkedCorrect || score < 60;
+
+        // Ask vibe question only when the submitted code is correct enough for intent verification.
+        if (requiresCodeRevision) {
+            result.vibeQuestion = null;
+        } else if (!result.vibeQuestion || !/line\s*\d+/i.test(result.vibeQuestion)) {
             result.vibeQuestion = buildFallbackVibeQuestion(submittedCode, module.concept);
         }
 
@@ -898,8 +925,9 @@ Review this code against official documentation patterns:
         console.log(`✅ [VIBE CHECK] Code reviewed. Correct: ${result.isCorrect}. Vibe question generated.`);
 
         res.json({
-            isCorrect: Boolean(result.isCorrect),
-            correctnessScore: result.correctnessScore || 0,
+            isCorrect: !requiresCodeRevision,
+            requiresCodeRevision,
+            correctnessScore: score,
             feedback: result.feedback || (validationIssues.length > 0 ? `Precheck failed: ${validationIssues[0]}` : 'Code review complete.'),
             codeIssues: [
                 ...validationIssues,
@@ -1241,15 +1269,76 @@ async function getMissionHistory(req, res) {
             return res.status(401).json({ error: 'Not authenticated' });
         }
 
-        const user = await User.findById(req.user._id).select('missions');
+        const user = await User.findById(req.user._id).select('missions totalModulesCompleted currentStreak lastActiveAt');
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json({ missions: user.missions || [] });
+        const higherCount = await User.countDocuments({
+            totalModulesCompleted: { $gt: Number(user.totalModulesCompleted) || 0 }
+        });
+        const globalRank = higherCount + 1;
+
+        res.json({
+            missions: user.missions || [],
+            stats: {
+                totalModulesCompleted: Number(user.totalModulesCompleted) || 0,
+                currentStreak: Number(user.currentStreak) || 0,
+                lastActiveAt: user.lastActiveAt || null,
+                globalRank,
+            },
+        });
     } catch (err) {
         console.error('❌ [MISSION] History fetch failed:', err.message);
         res.status(500).json({ error: 'Failed to fetch mission history', details: err.message });
+    }
+}
+
+/**
+ * GET /api/v1/public/profile/:username
+ * Public profile endpoint - NO AUTHENTICATION REQUIRED
+ * Returns sanitized user data and mission history for public viewing
+ */
+async function getPublicProfile(req, res) {
+    try {
+        const { username } = req.params;
+
+        if (!username) {
+            return res.status(400).json({ error: 'Username required' });
+        }
+
+        const user = await User.findOne({ 
+            'github.username': username 
+        }).select('first_name last_name email profile_picture selectedStack diagnosticLevel missions github totalModulesCompleted currentStreak lastActiveAt');
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const higherCount = await User.countDocuments({
+            totalModulesCompleted: { $gt: Number(user.totalModulesCompleted) || 0 }
+        });
+        const globalRank = higherCount + 1;
+
+        const displayName = user.first_name || user.github?.username || 'Wirestack Cadet';
+
+        res.json({
+            user: {
+                username: user.github?.username || '',
+                name: displayName,
+                email: user.email?.split('@')[0] + '***' || '***',
+                profile_picture: user.profile_picture,
+                selectedStack: user.selectedStack,
+                totalModulesCompleted: Number(user.totalModulesCompleted) || 0,
+                currentStreak: Number(user.currentStreak) || 0,
+                lastActiveAt: user.lastActiveAt || null,
+                globalRank,
+            },
+            missions: user.missions || [],
+        });
+    } catch (err) {
+        console.error('❌ [PUBLIC PROFILE] Fetch failed:', err.message);
+        res.status(500).json({ error: 'Failed to fetch profile', details: err.message });
     }
 }
 
@@ -1262,4 +1351,5 @@ module.exports = {
     getProgress,
     resetMission,
     getMissionHistory,
+    getPublicProfile,
 };
