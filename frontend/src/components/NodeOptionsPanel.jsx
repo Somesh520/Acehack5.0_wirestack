@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, CheckCircle2, ChevronRight, Lock, Sparkles } from 'lucide-react';
 import { PIPELINE_STEPS } from './pipelineConfig';
 
-const NodeOptionsPanel = ({ node, onSelectOption, onClose }) => {
+const NodeOptionsPanel = ({ node, onSelectOption, onClose, isLocked }) => {
     const { stepId, status, selectedOption: currentSelection, bestPractice, alternatives, title: nodeTitle } = node.data;
 
     // Use dynamic data from AI if available, otherwise fallback to static pipeline
@@ -43,7 +43,7 @@ const NodeOptionsPanel = ({ node, onSelectOption, onClose }) => {
 
     if (!allOptions || allOptions.length === 0) return null;
 
-    if (status === 'locked') {
+    if (status === 'locked' && !isLocked) {
         return (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 font-mono backdrop-blur-sm">
                 <div className="w-[400px] bg-white border-4 border-black p-8 text-center shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] hover:shadow-none transition-all hover:translate-x-1 hover:translate-y-1">
@@ -67,15 +67,15 @@ const NodeOptionsPanel = ({ node, onSelectOption, onClose }) => {
                 {/* Header */}
                 <div
                     className="p-6 border-b-4 border-black flex items-center justify-between shrink-0 transition-colors"
-                    style={{ backgroundColor: step.color || '#FFD700' }}
+                    style={{ backgroundColor: isLocked ? '#33FF66' : (step.color || '#FFD700') }}
                 >
-                    <div>
+                    <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                            {step.icon || <Sparkles size={28} />}
-                            <h2 className="text-3xl font-black uppercase tracking-tight">{step.title}</h2>
+                            {isLocked ? <Lock size={28} /> : (step.icon || <Sparkles size={28} />)}
+                            <h2 className="text-3xl font-black uppercase tracking-tight">{isLocked ? "MISSION SECURED" : step.title}</h2>
                         </div>
                         <p className="text-[11px] font-black bg-black text-white px-3 py-1 inline-block uppercase tracking-widest shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">
-                            {status === 'completed' ? '✓ MISSION COMPLETE' : '▶ NEW CHALLENGE'}
+                            {isLocked ? '🛡️ ARCHITECTURE LOCKED' : (status === 'completed' ? '✓ MISSION COMPLETE' : '▶ NEW CHALLENGE')}
                         </p>
                     </div>
                     <button
@@ -89,13 +89,13 @@ const NodeOptionsPanel = ({ node, onSelectOption, onClose }) => {
                 {/* Options List */}
                 <div className="flex-1 overflow-y-auto p-6 bg-gray-50/80 custom-scrollbar">
                     <h3 className="font-black uppercase mb-5 text-gray-500 text-[11px] tracking-[0.2em] flex items-center gap-2">
-                        <span className="w-4 h-[2px] bg-gray-400"></span> Compare & Choose
+                        <span className="w-4 h-[2px] bg-gray-400"></span> {isLocked ? "FINAL SELECTION" : "Compare & Choose"}
                     </h3>
-                    <div className="flex flex-col gap-5">
+                    <div className={`flex flex-col gap-5 ${isLocked ? 'opacity-75 pointer-events-none' : ''}`}>
                         {allOptions.map(opt => (
                             <div
                                 key={opt.id}
-                                onClick={() => setSelectedId(opt.id)}
+                                onClick={() => !isLocked && setSelectedId(opt.id)}
                                 className={`cursor-pointer border-4 border-black p-5 transition-all relative group flex flex-col gap-3 ${selectedId === opt.id
                                     ? 'bg-[#00F0FF]/10 shadow-none translate-x-1 translate-y-1'
                                     : 'bg-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)]'
@@ -134,12 +134,12 @@ const NodeOptionsPanel = ({ node, onSelectOption, onClose }) => {
                 {/* Footer Action */}
                 <div className="p-6 border-t-4 border-black bg-white flex justify-end shrink-0">
                     <button
-                        disabled={!selectedId}
+                        disabled={!selectedId || isLocked}
                         onClick={() => onSelectOption(step.id, selectedId)}
                         className="flex items-center justify-center gap-3 w-full py-4 border-4 border-black bg-[#33FF66] font-black text-xl uppercase disabled:opacity-50 disabled:bg-gray-200 disabled:cursor-not-allowed hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-1 active:shadow-none"
                     >
-                        {status === 'completed' && selectedId === currentSelection ? 'Confirm Checkpoint' : 'Lock In Choice'}
-                        <ChevronRight size={24} strokeWidth={3} />
+                        {isLocked ? 'MISSION COMPLETED' : (status === 'completed' && selectedId === currentSelection ? 'Confirm Checkpoint' : 'Lock In Choice')}
+                        {isLocked ? <CheckCircle2 size={24} /> : <ChevronRight size={24} strokeWidth={3} />}
                     </button>
                 </div>
             </div>

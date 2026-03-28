@@ -1,330 +1,699 @@
 import React, { useState } from 'react';
-import { ArrowRight, Play, Server, Database, Shield, Zap, Workflow, CheckSquare, Star, Plus, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+    ArrowRight, Brain, Terminal, ShieldCheck, Zap,
+    Lock, MessageSquare, Target, Layers, Activity,
+    Radio, Plus, Minus, CheckCircle2, XCircle, Code2, Sparkles, Map
+} from 'lucide-react';
 
-const LandingPage = () => {
-    return (
-        <div className="min-h-screen text-black overflow-hidden relative font-sans selection:bg-[#ffd800] selection:text-black flex flex-col items-center">
+/* ─── NEO-BRUTALISM TOKENS ───────────────────────────────
+   BG:      #FFFFF0  (ivory white)
+   Black:   #0D0D0D
+   Yellow:  #FFE145  (primary punch)
+   Pink:    #FF3EA5  (secondary punch)
+   Green:   #3EFFB2  (success / live)
+   Blue:    #2979FF  (code highlight)
+   Shadow:  solid black, no blur
+   ──────────────────────────────────────────────────────── */
 
-            {/* Navigation */}
-            <nav className="w-full px-6 py-6 pb-0 flex justify-center items-center z-10 relative max-w-7xl mx-auto">
-                <div className="hidden md:flex gap-8 font-black uppercase tracking-widest border-[4px] border-black bg-white px-8 py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <a href="#features" className="hover:underline decoration-4 underline-offset-4">Features</a>
-                    <a href="#use-cases" className="hover:underline decoration-4 underline-offset-4">Use Cases</a>
-                    <a href="#integrations" className="hover:underline decoration-4 underline-offset-4">Integrations</a>
-                    <a href="#faq" className="hover:underline decoration-4 underline-offset-4">FAQs</a>
-                </div>
-            </nav>
-
-            {/* Hero Content (Exact Layout Preserved) */}
-            <main className="w-full flex-1 flex flex-col items-center justify-center px-4 max-w-7xl relative z-10 mt-16 md:mt-24 mb-32">
-
-                {/* Version Tag */}
-                <div className="bg-black text-white px-4 py-2 text-sm tracking-widest font-mono transform rotate-[-3deg] mb-8 uppercase" style={{ fontFamily: "'Courier New', Courier, monospace", fontWeight: 700 }}>
-                    V4.0 ONLINE
-                </div>
-
-                {/* Just Ask Title */}
-                <h1 className="text-6xl sm:text-8xl md:text-[8rem] lg:text-[10rem] leading-none tracking-[0.05em] font-black mb-6 z-10 relative uppercase text-center" style={{ fontFamily: "monospace" }}>
-                    WIRE<span className="text-[#418df4] stroke-black">STACK</span>
-                </h1>
-
-                {/* Yellow Subtitle Box */}
-                <div className="bg-[#ffd800] border-[4px] border-black font-black text-xl md:text-3xl px-8 py-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transform rotate-1 mb-20 uppercase tracking-tight text-center">
-                    Drag. Connect. Deploy.
-                </div>
-
-                {/* Big Blue CTA - Replacing Goal Input & Old CTA */}
-                <a href="/api/auth/google" className="w-full xl:w-[800px] bg-[#418df4] hover:bg-[#347be0] border-[4px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none transition-all flex flex-col sm:flex-row items-center justify-center py-6 gap-3 lg:gap-5 group px-8 z-20 mx-auto transform -rotate-1 no-underline">
-                    <span className="font-black text-2xl md:text-4xl text-white tracking-widest flex items-center gap-4 drop-shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] whitespace-nowrap uppercase">
-                        OPEN BUILDER IDE <ArrowRight className="w-8 h-8 md:w-10 md:h-10 stroke-[4]" />
-                    </span>
-                </a>
-            </main>
-
-
-
-            {/* Features Bento Grid (Brutalist Edition) */}
-            <section id="features" className="w-full py-24 px-6 max-w-7xl mx-auto">
-                <div className="mb-16 border-[4px] border-black bg-[#ffd800] inline-block px-8 py-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
-                    <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter">Everything to ship faster.</h2>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 auto-rows-auto">
-
-                    <BrutalistCard color="bg-white" className="md:col-span-2">
-                        <div className="w-16 h-16 border-[4px] border-black bg-[#418df4] mb-6 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                            <Workflow className="w-8 h-8 text-white stroke-[3]" />
-                        </div>
-                        <h3 className="text-3xl font-black uppercase mb-4 tracking-tight">Visual Architecture</h3>
-                        <p className="text-xl font-bold font-mono leading-relaxed opacity-80 uppercase">
-                            Drag, drop, and connect full-stack components. Map out your data flow and API routes before writing a single line of code.
-                        </p>
-                    </BrutalistCard>
-
-                    <BrutalistCard color="bg-[#f472b6]">
-                        <div className="w-16 h-16 border-[4px] border-black bg-[#ffd800] mb-6 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                            <Zap className="w-8 h-8 text-black stroke-[3]" />
-                        </div>
-                        <h3 className="text-2xl font-black uppercase mb-4 tracking-tight">Instant Scaffolding</h3>
-                        <p className="font-bold font-mono uppercase opacity-90">Generate production-ready code in milliseconds.</p>
-                    </BrutalistCard>
-
-                    <BrutalistCard color="bg-[#4ade80]">
-                        <div className="w-16 h-16 border-[4px] border-black bg-white mb-6 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                            <Database className="w-8 h-8 text-black stroke-[3]" />
-                        </div>
-                        <h3 className="text-2xl font-black uppercase mb-4 tracking-tight">Smart Databases</h3>
-                        <p className="font-bold font-mono uppercase opacity-90">ORMs and Migrations configured exactly to your schema.</p>
-                    </BrutalistCard>
-
-                    <BrutalistCard color="bg-[#fb923c]" className="md:col-span-2 flex flex-col md:flex-row gap-8 items-center">
-                        <div className="flex-1">
-                            <div className="w-16 h-16 border-[4px] border-black bg-white mb-6 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                                <Shield className="w-8 h-8 text-black stroke-[3]" />
-                            </div>
-                            <h3 className="text-3xl font-black uppercase mb-4 tracking-tight">Enterprise Security</h3>
-                            <p className="text-xl font-bold font-mono uppercase opacity-90">
-                                Auth0, JWTs, and CSRF protection baked right into your generated boilerplate by default.
-                            </p>
-                        </div>
-                        <div className="w-full md:w-64 h-32 border-[4px] border-black bg-black text-[#4ade80] flex items-center justify-center font-black font-mono shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
-                            [ SECURE: TRUE ]
-                        </div>
-                    </BrutalistCard>
-
-                </div>
-            </section>
-
-            {/* How it Works / Use Cases */}
-            <section id="use-cases" className="w-full py-24 border-y-[4px] border-black bg-white">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="mb-16 border-[4px] border-black bg-[#4ade80] inline-block px-8 py-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-                        <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">Go from idea to URL.</h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative mt-12">
-                        {/* Thick zigzag connector behind cards on desktop */}
-                        <div className="hidden md:block absolute top-[40px] left-[10%] right-[10%] h-[8px] bg-black z-0 border-y-[2px] border-dashed border-white" />
-
-                        <StepCard num="01" title="Map it out" desc="Connect UI nodes to Server nodes visually on the infinite canvas." color="bg-[#ffd800]" />
-                        <StepCard num="02" title="Configure Logic" desc="Define variables, secrets, and strict CORS policies inside the nodes." color="bg-[#f472b6]" />
-                        <StepCard num="03" title="Generate Code" desc="Download a zipped repo ready for deployment in one click." color="bg-[#418df4]" />
-                    </div>
-                </div>
-            </section>
-
-            {/* Developer Experience (Replaced Wall of Love) */}
-            <section className="w-full py-24 px-6 max-w-7xl mx-auto">
-                <h2 className="text-5xl font-black uppercase tracking-tighter mb-16 text-center underline decoration-[#f472b6] decoration-8 underline-offset-8">Developer First</h2>
-
-                <div className="grid md:grid-cols-3 gap-8">
-                    <DevFeatureCard
-                        title="FULL CONTROL"
-                        text="You are never locked in. Download your complete codebase, modify the Express routing, or tweak the React components exactly how you want."
-                        color="bg-white"
-                    />
-                    <DevFeatureCard
-                        title="NO MAGIC, JUST AST"
-                        text="WireStack uses rigorous Abstract Syntax Tree (AST) parsing under the hood to write precise, predictable boilerplate code that compiles perfectly."
-                        color="bg-[#ffd800]"
-                        rotation="rotate-1"
-                    />
-                    <DevFeatureCard
-                        title="ENVIRONMENT READY"
-                        text="Every generated project includes perfectly configured .env files, standard start scripts, and optional Dockerfiles for immediate deployment."
-                        color="bg-[#4ade80]"
-                        rotation="-rotate-1"
-                    />
-                </div>
-            </section>
-
-
-            {/* Integrations */}
-            <section id="integrations" className="w-full py-24 border-y-[4px] border-black bg-[#4ade80]">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-16">
-                        <div className="border-[4px] border-black bg-white inline-block px-8 py-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
-                            <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter">Plug & Play</h2>
-                        </div>
-                        <p className="font-bold font-mono text-xl mt-6 uppercase">Connect with your favorite tools instantly.</p>
-                    </div>
-
-                    <div className="grid md:grid-cols-3 gap-8 items-stretch pt-8">
-                        <IntegrationCard
-                            title="PAYMENTS"
-                            desc="Monetize your app in seconds with secure payment gateways."
-                            features={["Stripe Checkout", "Webhook Listeners", "Subscription Logic"]}
-                            color="bg-[#ffd800]"
-                        />
-                        <IntegrationCard
-                            title="DATABASES"
-                            desc="Store and query data without writing complex ORM logic."
-                            features={["MongoDB Nodes", "PostgreSQL (Prisma)", "Redis Caching"]}
-                            color="bg-white"
-                            isPro={true}
-                        />
-                        <IntegrationCard
-                            title="AUTHENTICATION"
-                            desc="Enterprise-grade security and user management out of the box."
-                            features={["Google OAuth", "JWT Sessions", "Role-Based Access"]}
-                            color="bg-[#f472b6]"
-                        />
-                    </div>
-                </div>
-            </section>
-
-            {/* FAQ */}
-            <section id="faq" className="w-full py-24 px-6 max-w-4xl mx-auto">
-                <h2 className="text-5xl font-black uppercase tracking-tighter mb-16 text-center">FAQs</h2>
-
-                <div className="space-y-6">
-                    <FAQItem
-                        q="What gets included in the generated zip file?"
-                        a="You receive a fully structured monolithic or monorepo workspace. It includes all package.json files, fully configured dev scripts, Dockerfiles (if requested), and boilerplates for your selected frontend and backend nodes."
-                    />
-                    <FAQItem
-                        q="Can I eject from WireStack?"
-                        a="You don't need to eject! Unlike no-code builders, WireStack simply generates standard source code (React, Express, PostGres, etc.). Once you download the repository, you own the code 100% and can modify it however you like."
-                    />
-                    <FAQItem
-                        q="Does it support TypeScript?"
-                        a="Yes, TypeScript is supported out of the box. You can toggle between JavaScript and TypeScript for any generated node in your canvas settings."
-                    />
-                </div>
-            </section>
-
-            {/* Final Massive CTA */}
-            <section className="w-full py-32 border-t-[4px] border-black bg-[#ffd800] text-center px-4">
-                <h2 className="text-6xl md:text-8xl font-black uppercase tracking-tighter mb-12">Stop Configuring.</h2>
-                <button className="px-12 py-6 bg-black text-white text-2xl md:text-4xl font-black uppercase border-[4px] border-black shadow-[12px_12px_0px_0px_rgba(255,255,255,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] active:translate-x-[12px] active:translate-y-[12px] active:shadow-none transition-all flex items-center justify-center gap-4 mx-auto">
-                    CREATE WORKSPACE <ArrowRight className="w-8 h-8 md:w-12 md:h-12 stroke-[4]" />
-                </button>
-            </section>
-
-            {/* Footer */}
-            <footer className="w-full border-t-[4px] border-black bg-white pt-16 pb-8 px-6">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-12 font-bold uppercase font-mono">
-                    <div className="max-w-sm">
-                        <h3 className="text-3xl font-black mb-4">WIRESTACK</h3>
-                        <p className="border-[4px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-[#f4f4f0]">
-                            Visual logic translated directly to production-ready scalable code. Action always.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-12">
-                        <div>
-                            <h4 className="text-xl font-black mb-4 underline decoration-4 underline-offset-4">PRODUCT</h4>
-                            <ul className="space-y-4">
-                                <li><a href="#" className="hover:bg-black hover:text-white px-2 -mx-2 transition-colors">Features</a></li>
-                                <li><a href="#integrations" className="hover:bg-black hover:text-white px-2 -mx-2 transition-colors">Integrations</a></li>
-                                <li><a href="#" className="hover:bg-black hover:text-white px-2 -mx-2 transition-colors">Changelog</a></li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h4 className="text-xl font-black mb-4 underline decoration-4 underline-offset-4">LEGAL</h4>
-                            <ul className="space-y-4">
-                                <li><a href="#" className="hover:bg-black hover:text-white px-2 -mx-2 transition-colors">Privacy</a></li>
-                                <li><a href="#" className="hover:bg-black hover:text-white px-2 -mx-2 transition-colors">Terms</a></li>
-                            </ul>
-                        </div>
-                        <div className="col-span-2 md:col-span-1 border-[4px] border-black bg-[#4ade80] p-4 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                            <h4 className="text-xl font-black mb-2">SYSTEM STATUS</h4>
-                            <span className="bg-black text-[#4ade80] px-3 py-1 text-lg font-black tracking-widest">[ ONLINE ]</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="w-full border-t-[4px] border-black mt-16 pt-8 text-center font-bold font-mono uppercase">
-                    © 2026 Wirestack Inc. V4.0.0.
-                </div>
-            </footer>
-        </div>
-    );
+const NEO = {
+    bg: '#FFFFF0',
+    black: '#0D0D0D',
+    yellow: '#FFE145',
+    pink: '#FF3EA5',
+    green: '#3EFFB2',
+    blue: '#2979FF',
+    shadow: '6px 6px 0px #0D0D0D',
+    shadowLg: '10px 10px 0px #0D0D0D',
+    shadowXl: '16px 16px 0px #0D0D0D',
+    border: '3px solid #0D0D0D',
 };
 
-/* --- Internal Components --- */
+/* ─── PRIMITIVE COMPONENTS ─────────────────────────────── */
 
-const BrutalistCard = ({ children, className, color }) => (
-    <div className={`border-[4px] border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] ${color} ${className}`}>
+const NeoBtn = ({ href, children, bg = NEO.yellow, style = {}, className = '' }) => (
+    <a
+        href={href}
+        className={`inline-flex items-center gap-3 px-8 py-4 font-black text-sm uppercase tracking-wider no-underline transition-all active:translate-x-[6px] active:translate-y-[6px] group ${className}`}
+        style={{
+            background: bg,
+            border: NEO.border,
+            boxShadow: NEO.shadow,
+            color: NEO.black,
+            ...style,
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translate(3px,3px)'; e.currentTarget.style.boxShadow = '3px 3px 0px #0D0D0D'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = NEO.shadow; }}
+    >
+        {children}
+    </a>
+);
+
+const Tag = ({ children, bg = NEO.yellow }) => (
+    <span
+        className="inline-block px-3 py-1 text-[10px] font-black uppercase tracking-widest"
+        style={{ background: bg, border: '2px solid #0D0D0D', color: NEO.black }}
+    >
+        {children}
+    </span>
+);
+
+const Card = ({ children, bg = 'white', className = '', style = {} }) => (
+    <div
+        className={`${className}`}
+        style={{
+            background: bg,
+            border: NEO.border,
+            boxShadow: NEO.shadowLg,
+            ...style,
+        }}
+    >
         {children}
     </div>
 );
 
-const StepCard = ({ num, title, desc, color }) => (
-    <div className={`border-[4px] border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-10 relative ${color} flex flex-col items-center text-center hover:-translate-y-2 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all`}>
-        <div className="w-16 h-16 border-[4px] border-black bg-white flex items-center justify-center font-black text-2xl mb-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] -mt-12 rounded-full">
+/* ─── FEATURE CARD ─────────────────────────────────────── */
+const FeatureCard = ({ icon, title, desc, bg, accent, delay = 0 }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay, duration: 0.4 }}
+        whileHover={{ x: -4, y: -4, transition: { duration: 0.15 } }}
+        className="p-8 flex flex-col gap-5 cursor-default"
+        style={{ background: bg, border: NEO.border, boxShadow: NEO.shadowLg }}
+    >
+        <div
+            className="w-14 h-14 flex items-center justify-center"
+            style={{ background: accent, border: `3px solid ${NEO.black}`, boxShadow: `4px 4px 0 ${NEO.black}` }}
+        >
+            {icon}
+        </div>
+        <div>
+            <h3 className="text-xl font-black uppercase mb-2" style={{ color: NEO.black }}>{title}</h3>
+            <p className="text-sm leading-relaxed" style={{ color: '#444' }}>{desc}</p>
+        </div>
+    </motion.div>
+);
+
+/* ─── STEP ─────────────────────────────────────────────── */
+const Step = ({ num, title, desc, accent, delay = 0, dark = false }) => (
+    <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        whileInView={{ opacity: 1, x: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay }}
+        className="flex gap-6"
+    >
+        <div
+            className="flex-shrink-0 w-16 h-16 flex items-center justify-center text-3xl font-black"
+            style={{ background: accent, border: NEO.border, boxShadow: NEO.shadow, color: NEO.black }}
+        >
             {num}
         </div>
-        <h3 className="text-2xl font-black uppercase tracking-tight mb-4">{title}</h3>
-        <p className="font-bold font-mono uppercase opacity-90">{desc}</p>
-    </div>
-);
-
-const DevFeatureCard = ({ title, text, color, rotation = "" }) => (
-    <div className={`border-[4px] border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between ${color} transition-transform ${rotation} hover:rotate-0 hover:translate-x-1 hover:translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]`}>
         <div>
-            <div className="flex gap-2 mb-6">
-                {[1, 2, 3].map(i => (
-                    <div key={i} className="w-4 h-4 rounded-full bg-black border-2 border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]"></div>
-                ))}
-            </div>
-            <h3 className="text-2xl font-black uppercase tracking-tighter mb-4">{title}</h3>
-            <p className="font-bold font-mono text-lg leading-snug">{text}</p>
+            <h3 className="text-lg font-black uppercase mb-1" style={{ color: dark ? 'white' : NEO.black }}>{title}</h3>
+            <p className="text-sm leading-relaxed" style={{ color: dark ? '#BBB' : '#555' }}>{desc}</p>
         </div>
-    </div>
+    </motion.div>
 );
 
-const IntegrationCard = ({ title, desc, features, color, isPro }) => (
-    <div className={`border-[4px] border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col relative bg-white ${isPro ? '-mt-4 -mb-4 z-10 scale-105' : 'scale-100 z-0'} transition-transform`}>
-        {isPro && (
-            <div className="absolute top-0 right-0 border-l-[4px] border-b-[4px] border-black bg-black text-[#ffd800] px-4 py-2 font-black uppercase text-sm">
-                COMING SOON
-            </div>
-        )}
-        <div className={`border-[4px] border-black p-4 text-center mb-8 ${color} shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]`}>
-            <h3 className="text-2xl font-black uppercase tracking-widest leading-none">{title}</h3>
-        </div>
-
-        <p className="font-bold font-mono text-lg mb-6 leading-tight">{desc}</p>
-
-        <ul className="space-y-4 mb-12 flex-1">
-            {features.map((feat, i) => (
-                <li key={i} className="flex items-start gap-3 font-bold uppercase font-mono tracking-tight">
-                    <CheckSquare className="w-6 h-6 stroke-[3] shrink-0 fill-[#4ade80]" />
-                    <span>{feat}</span>
-                </li>
-            ))}
-        </ul>
-    </div>
-);
-
-const FAQItem = ({ q, a }) => {
+/* ─── FAQ ITEM ─────────────────────────────────────────── */
+const FAQItem = ({ q, a, accent, delay = 0 }) => {
     const [open, setOpen] = useState(false);
     return (
-        <div className="border-[4px] border-black bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-6">
+        <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay }}
+            style={{ border: NEO.border, boxShadow: open ? NEO.shadowLg : NEO.shadow }}
+        >
             <button
                 onClick={() => setOpen(!open)}
-                className={`w-full p-6 text-left flex justify-between items-center font-black text-2xl uppercase tracking-tight transition-colors ${open ? 'bg-[#ffd800] border-b-[4px] border-black' : 'hover:bg-gray-100'}`}
+                className="w-full flex justify-between items-center text-left px-8 py-6 gap-4"
+                style={{ background: open ? accent : 'white' }}
             >
-                {q}
-                {open ? <Minus className="w-8 h-8 stroke-[4]" /> : <Plus className="w-8 h-8 stroke-[4]" />}
+                <span className="font-black text-base uppercase tracking-tight" style={{ color: NEO.black }}>{q}</span>
+                <span style={{ color: NEO.black, flexShrink: 0 }}>
+                    {open ? <Minus size={22} strokeWidth={3} /> : <Plus size={22} strokeWidth={3} />}
+                </span>
             </button>
             <AnimatePresence>
                 {open && (
                     <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
+                        initial={{ height: 0 }}
+                        animate={{ height: 'auto' }}
+                        exit={{ height: 0 }}
                         className="overflow-hidden"
                     >
-                        <p className="p-6 font-bold font-mono text-lg uppercase leading-relaxed bg-white">
+                        <p
+                            className="px-8 py-6 text-sm leading-relaxed"
+                            style={{ background: '#FAFAF5', borderTop: '2px solid #0D0D0D', color: '#444' }}
+                        >
                             {a}
                         </p>
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </motion.div>
     );
 };
+
+/* ─── MARQUEE STACKS ───────────────────────────────────── */
+const stacks = ['React', 'Node.js', 'MongoDB', 'Express', 'Next.js', 'Python', 'PostgreSQL', 'Docker', 'TypeScript', 'FastAPI', 'Redis', 'GraphQL'];
+
+/* ─── COMPARISON ───────────────────────────────────────── */
+const CmpRow = ({ label, vibe, eng }) => (
+    <div className="grid grid-cols-3 text-sm" style={{ borderBottom: '2px solid #0D0D0D' }}>
+        <div className="px-6 py-4 font-bold bg-white" style={{ borderRight: '2px solid #0D0D0D', color: NEO.black }}>{label}</div>
+        <div className="px-6 py-4 flex items-center gap-2" style={{ background: '#FFF0F5', borderRight: '2px solid #0D0D0D', color: '#CC1C5B' }}>
+            <XCircle size={14} /> {vibe}
+        </div>
+        <div className="px-6 py-4 flex items-center gap-2" style={{ background: '#F0FFF8', color: '#127047' }}>
+            <CheckCircle2 size={14} /> {eng}
+        </div>
+    </div>
+);
+
+/* ─── MAIN PAGE ────────────────────────────────────────── */
+const LandingPage = () => (
+    <div className="min-h-screen font-sans overflow-x-hidden" style={{ background: NEO.bg }}>
+
+        {/* ══ NAVBAR ══════════════════════════════════════════════ */}
+        <nav className="sticky top-0 z-50 px-6 py-4" style={{ background: NEO.bg, borderBottom: NEO.border }}>
+            <div className="max-w-7xl mx-auto flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                    <div
+                        className="w-10 h-10 flex items-center justify-center font-black text-lg"
+                        style={{ background: NEO.yellow, border: NEO.border, boxShadow: NEO.shadow }}
+                    >
+                        W
+                    </div>
+                    <span className="font-black text-2xl uppercase tracking-tighter" style={{ color: NEO.black }}>Wirestack</span>
+                </div>
+
+                <div className="hidden md:flex items-center gap-1">
+                    {['Philosophy', 'Protocol', 'FAQ'].map(item => (
+                        <a
+                            key={item}
+                            href={`#${item.toLowerCase()}`}
+                            className="px-5 py-2 font-black text-xs uppercase tracking-widest no-underline hover:bg-black hover:text-white transition-colors"
+                            style={{ color: NEO.black }}
+                        >
+                            {item}
+                        </a>
+                    ))}
+                </div>
+
+                <NeoBtn href="/login" bg={NEO.yellow}>
+                    Start Mission <ArrowRight size={16} strokeWidth={3} />
+                </NeoBtn>
+            </div>
+        </nav>
+
+        {/* ══ HERO ════════════════════════════════════════════════ */}
+        <section className="relative px-6 pt-24 pb-32 overflow-hidden">
+            {/* Background hatching decoration */}
+            <div
+                className="absolute inset-0 pointer-events-none opacity-[0.03]"
+                style={{ backgroundImage: 'repeating-linear-gradient(45deg, #000 0, #000 1px, transparent 0, transparent 50%)', backgroundSize: '12px 12px' }}
+            />
+
+            <div className="max-w-7xl mx-auto">
+                {/* Announcement bar */}
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-3 mb-10"
+                >
+                    <Tag bg={NEO.green}><Radio size={10} className="inline mr-1 animate-pulse" />v5.0 Online</Tag>
+                    <Tag bg="white">Anti-Vibe Engine Active</Tag>
+                </motion.div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                    {/* Left: Copy */}
+                    <div>
+                        <motion.h1
+                            initial={{ opacity: 0, y: 40 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="text-7xl md:text-8xl lg:text-9xl font-black leading-[0.85] tracking-tighter uppercase"
+                            style={{ color: NEO.black }}
+                        >
+                            Stop<br />
+                            <span
+                                className="italic"
+                                style={{ WebkitTextStroke: `4px ${NEO.black}`, color: NEO.yellow }}
+                            >Vibing.</span><br />
+                            Start<br />
+                            Build<span style={{ color: NEO.pink }}>ing.</span>
+                        </motion.h1>
+
+                        <motion.p
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.25 }}
+                            className="mt-10 text-lg leading-relaxed max-w-sm font-medium"
+                            style={{ color: '#333' }}
+                        >
+                            The platform that forces you to <strong>manually type, deeply understand,</strong> and{' '}
+                            <strong>defend every line of code</strong> before you're allowed to advance.
+                        </motion.p>
+
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 }}
+                            className="mt-10 flex flex-wrap gap-4"
+                        >
+                            <NeoBtn href="/login" bg={NEO.yellow} style={{ boxShadow: NEO.shadowLg, fontSize: '1rem', padding: '18px 36px' }}>
+                                Begin Mission <ArrowRight size={20} strokeWidth={3} />
+                            </NeoBtn>
+                            <NeoBtn href="#philosophy" bg="white">
+                                Learn More
+                            </NeoBtn>
+                        </motion.div>
+
+                        {/* Trust badges */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.6 }}
+                            className="mt-12 flex flex-wrap gap-4"
+                        >
+                            {[
+                                ['Zero Auto-Complete', NEO.yellow],
+                                ['AI-Verified Mastery', NEO.green],
+                                ['Groq-Powered INTEL', NEO.pink],
+                            ].map(([label, bg]) => (
+                                <Tag key={label} bg={bg}>{label}</Tag>
+                            ))}
+                        </motion.div>
+                    </div>
+
+                    {/* Right: Terminal Card */}
+                    <motion.div
+                        initial={{ opacity: 0, x: 40 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3, duration: 0.6 }}
+                    >
+                        <Card style={{ boxShadow: NEO.shadowXl }}>
+                            {/* Terminal bar */}
+                            <div
+                                className="flex items-center justify-between px-6 py-4"
+                                style={{ background: NEO.black, borderBottom: NEO.border }}
+                            >
+                                <div className="flex gap-2">
+                                    <div className="w-4 h-4 rounded-full" style={{ background: NEO.pink, border: '2px solid white' }} />
+                                    <div className="w-4 h-4 rounded-full" style={{ background: NEO.yellow, border: '2px solid white' }} />
+                                    <div className="w-4 h-4 rounded-full" style={{ background: NEO.green, border: '2px solid white' }} />
+                                </div>
+                                <span className="font-mono text-xs font-bold" style={{ color: NEO.green }}>
+                                    Vibe_Check — Analysis_Running
+                                </span>
+                                <Tag bg={NEO.green}>
+                                    <Activity size={10} className="inline mr-1 animate-pulse" />Live
+                                </Tag>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2" style={{ borderBottom: '3px solid #0D0D0D' }}>
+                                {/* Code panel */}
+                                <div
+                                    className="p-8 font-mono text-sm"
+                                    style={{ background: '#1C1C1C', borderRight: '2px solid #0D0D0D' }}
+                                >
+                                    <p className="text-xs mb-4 font-bold uppercase" style={{ color: NEO.yellow }}>
+                                        // Mission: useEffect Hook
+                                    </p>
+                                    <div className="leading-8" style={{ color: '#CCC' }}>
+                                        <p><span style={{ color: '#FF79C6' }}>const</span> useFetch = (url) =&gt; {'{'}</p>
+                                        <p className="pl-4"><span style={{ color: '#FF79C6' }}>const</span> [data, setData] = useState(null);</p>
+                                        <p className="pl-4">useEffect(() =&gt; {'{'}</p>
+                                        <p className="pl-8">fetch(url).then(r =&gt; r.json())</p>
+                                        <p className="pl-12">.then(setData);</p>
+                                        <p className="pl-4 font-black" style={{ color: NEO.pink }}>{'}, [url]);'}
+                                            <span
+                                                className="ml-2 px-2 py-0.5 text-[10px] font-black"
+                                                style={{ background: NEO.pink, color: 'white', border: '1px solid white' }}
+                                            >← THIS</span>
+                                        </p>
+                                        <p>{'}'}</p>
+                                    </div>
+                                </div>
+
+                                {/* AI Probe panel */}
+                                <div className="p-8 flex flex-col gap-6" style={{ background: 'white' }}>
+                                    <Tag bg={NEO.pink}>AI Probe</Tag>
+                                    <p className="font-black text-base leading-relaxed" style={{ color: NEO.black }}>
+                                        "Why does <code
+                                            className="px-2 py-0.5 font-mono"
+                                            style={{ background: NEO.yellow, border: '2px solid #0D0D0D' }}
+                                        >url</code> belong in the dependency array? What breaks if you leave it empty?"
+                                    </p>
+                                    <div
+                                        className="p-4 flex items-center gap-2"
+                                        style={{ border: '2px dashed #BBB' }}
+                                    >
+                                        <div
+                                            className="w-2 h-2 rounded-full animate-pulse"
+                                            style={{ background: NEO.pink }}
+                                        />
+                                        <span className="text-xs font-black uppercase tracking-widest" style={{ color: '#888' }}>
+                                            Awaiting your explanation...
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Status bar */}
+                            <div
+                                className="flex items-center gap-4 px-6 py-3"
+                                style={{ background: NEO.green }}
+                            >
+                                <Activity size={14} style={{ color: NEO.black }} />
+                                <span className="text-xs font-black uppercase tracking-widest" style={{ color: NEO.black }}>
+                                    Groq_Inference_Engine: ACTIVE · Vibe_Check: PENDING
+                                </span>
+                            </div>
+                        </Card>
+                    </motion.div>
+                </div>
+            </div>
+        </section>
+
+        {/* ══ STACK MARQUEE ═══════════════════════════════════════ */}
+        <div
+            className="overflow-hidden py-8"
+            style={{ background: NEO.black, borderTop: NEO.border, borderBottom: NEO.border }}
+        >
+            <div className="flex gap-12 animate-marquee-slower whitespace-nowrap">
+                {[...stacks, ...stacks].map((s, i) => (
+                    <div
+                        key={i}
+                        className="px-6 py-3 font-black text-lg uppercase tracking-wider flex-shrink-0"
+                        style={{ background: i % 3 === 0 ? NEO.yellow : i % 3 === 1 ? NEO.pink : NEO.green, color: NEO.black, border: '2px solid rgba(255,255,255,0.3)' }}
+                    >
+                        {s}
+                    </div>
+                ))}
+            </div>
+        </div>
+
+        {/* ══ PHILOSOPHY (FEATURES) ═══════════════════════════════ */}
+        <section id="philosophy" className="py-40 px-6">
+            <div className="max-w-7xl mx-auto">
+                <div className="mb-20">
+                    <Tag bg={NEO.pink} className="mb-4">Core Philosophy</Tag>
+                    <h2
+                        className="text-5xl md:text-7xl font-black uppercase tracking-tighter mt-4"
+                        style={{ color: NEO.black }}
+                    >
+                        Built to break<br />
+                        <span style={{ color: NEO.pink }}>bad habits.</span>
+                    </h2>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <FeatureCard
+                        delay={0}
+                        bg="white"
+                        accent={NEO.yellow}
+                        icon={<Terminal size={28} color={NEO.black} />}
+                        title="Type Every Character"
+                        desc="Auto-complete is deleted. Snippets are gone. If you cannot write it from memory, you do not know it yet. That's the rule."
+                    />
+                    <FeatureCard
+                        delay={0.1}
+                        bg={NEO.yellow}
+                        accent={NEO.black}
+                        icon={<Brain size={28} color="white" />}
+                        title="Explain Your Why"
+                        desc="After each module, our local AI asks you to defend specific decisions. Vague answers fail. Conceptual depth is the only currency."
+                    />
+                    <FeatureCard
+                        delay={0.2}
+                        bg="white"
+                        accent={NEO.pink}
+                        icon={<ShieldCheck size={28} color={NEO.black} />}
+                        title="Locked Until Mastered"
+                        desc="You don't move forward until you pass the Vibe Check. No skipping. No workarounds. This is the bottleneck that builds engineers."
+                    />
+                    <FeatureCard
+                        delay={0.15}
+                        bg={NEO.green}
+                        accent={NEO.black}
+                        icon={<Zap size={28} color={NEO.black} />}
+                        title="Personalized Baseline"
+                        desc="An AI diagnostic test finds your precise level. You start exactly where you need to, not from zero and not from too advanced."
+                    />
+                    <FeatureCard
+                        delay={0.25}
+                        bg="white"
+                        accent={NEO.blue}
+                        icon={<Target size={28} color={NEO.black} />}
+                        title="XP for Depth"
+                        desc="Your score is based on how deeply you understand, not how quickly you finish. Thorough explanations beat fast ones every time."
+                    />
+                    <FeatureCard
+                        delay={0.3}
+                        bg={NEO.pink}
+                        accent={NEO.yellow}
+                        icon={<Sparkles size={28} color={NEO.black} />}
+                        title="Neural Architect"
+                        desc="Powered by Groq's ultra-fast Llama-3 reasoning. Sub-second code critiques and architectural verification at the speed of thought."
+                    />
+                </div>
+            </div>
+        </section>
+
+        {/* ══ PROTOCOL ════════════════════════════════════════════ */}
+        <section id="protocol" className="py-40 px-6" style={{ background: NEO.black }}>
+            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+                <div>
+                    <Tag bg={NEO.yellow}>The Training Protocol</Tag>
+                    <h2
+                        className="text-5xl md:text-6xl font-black uppercase tracking-tighter mt-4 mb-6"
+                        style={{ color: 'white' }}
+                    >
+                        Three phases.<br />
+                        <span style={{ color: NEO.yellow }}>No shortcuts.</span>
+                    </h2>
+                    <p className="text-base leading-relaxed mb-16" style={{ color: '#888' }}>
+                        Every great engineer builds on deliberate, focused practice. Wirestack takes you through a battle-tested process that leaves zero room for copy-paste shortcuts.
+                    </p>
+                    <div className="flex flex-col gap-10">
+                        <Step num="01" delay={0} accent={NEO.yellow} dark={true} title="Diagnostic Baseline"
+                            desc="AI probes your conceptual depth across your chosen stack. Raw logic questions — no code yet. You're placed on a personalized roadmap."
+                        />
+                        <Step num="02" delay={0.1} accent={NEO.pink} dark={true} title="Manual Execution"
+                            desc="Build the assigned challenge in our deliberate editor. No suggestions. No hints. Every keystroke is yours."
+                        />
+                        <Step num="03" delay={0.2} accent={NEO.green} dark={true} title="Intel Extraction"
+                            desc="Explain your code decisions to the AI in plain English. Depth, accuracy, and specificity are scored. Pass the gate to advance."
+                        />
+                    </div>
+                </div>
+
+                {/* Roadmap Visual */}
+                <div style={{ border: `3px solid #333`, boxShadow: `10px 10px 0 ${NEO.yellow}` }}>
+                    <div
+                        className="px-6 py-4 font-mono text-xs font-black uppercase tracking-widest"
+                        style={{ background: NEO.yellow, color: NEO.black, borderBottom: '2px solid #0D0D0D' }}
+                    >
+                        Mission_Roadmap — JavaScript Track
+                    </div>
+                    {[
+                        { label: 'JS Fundamentals', xp: '+200 XP', done: true, color: NEO.green },
+                        { label: 'Closures & Scope', xp: '+300 XP', done: true, color: NEO.green },
+                        { label: 'Async / Await', xp: '+400 XP', active: true, color: NEO.yellow },
+                        { label: 'Event Loop', xp: '+500 XP', done: false, color: '#444' },
+                        { label: 'Prototype Chain', xp: '+600 XP', done: false, color: '#444' },
+                    ].map((item, i) => (
+                        <div
+                            key={i}
+                            className="flex items-center justify-between px-6 py-5"
+                            style={{
+                                borderBottom: i < 4 ? '2px solid #333' : 'none',
+                                background: item.active ? '#1A1A0A' : 'transparent',
+                                opacity: !item.done && !item.active ? 0.4 : 1,
+                            }}
+                        >
+                            <div className="flex items-center gap-4">
+                                <div
+                                    className="w-8 h-8 flex items-center justify-center text-base font-black"
+                                    style={{
+                                        background: item.color,
+                                        border: `2px solid ${item.done || item.active ? item.color : '#444'}`,
+                                        color: item.done ? NEO.black : item.active ? NEO.black : '#777',
+                                    }}
+                                >
+                                    {item.done ? '✓' : item.active ? '→' : <Lock size={12} className="text-gray-500" />}
+                                </div>
+                                <span className="font-black text-sm" style={{ color: item.active ? NEO.yellow : item.done ? 'white' : '#555' }}>
+                                    {item.label}
+                                </span>
+                                {item.active && <Tag bg={NEO.yellow}>Active</Tag>}
+                            </div>
+                            <span className="text-xs font-black" style={{ color: item.color }}>{item.xp}</span>
+                        </div>
+                    ))}
+                    {/* Bottom Bar */}
+                    <div
+                        className="px-6 py-4 flex items-center gap-3"
+                        style={{ background: '#111', borderTop: '2px solid #333' }}
+                    >
+                        <Activity size={12} style={{ color: NEO.green }} />
+                        <span className="text-xs font-black" style={{ color: NEO.green }}>Level 3 · 700 XP · Vibe_Check: PENDING</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {/* ══ COMPARISON ══════════════════════════════════════════ */}
+        <section className="py-40 px-6">
+            <div className="max-w-5xl mx-auto">
+                <div className="mb-20">
+                    <Tag bg={NEO.green}>The Reality Check</Tag>
+                    <h2
+                        className="text-5xl md:text-7xl font-black uppercase tracking-tight mt-4"
+                        style={{ color: NEO.black }}
+                    >
+                        Vibe Coder<br />
+                        <span style={{ color: NEO.pink }}>vs.</span> Engineer.
+                    </h2>
+                </div>
+
+                <Card style={{ overflow: 'hidden' }}>
+                    <div className="grid grid-cols-3" style={{ background: NEO.black, borderBottom: '2px solid #0D0D0D' }}>
+                        <div className="px-6 py-4 text-xs font-black uppercase tracking-widest" style={{ color: '#888' }}>Skill</div>
+                        <div className="px-6 py-4 text-xs font-black uppercase tracking-widest text-center" style={{ color: NEO.pink, borderLeft: '2px solid #333' }}>Vibe Coder</div>
+                        <div className="px-6 py-4 text-xs font-black uppercase tracking-widest text-center" style={{ color: NEO.green, borderLeft: '2px solid #333' }}>Engineer</div>
+                    </div>
+                    <CmpRow label="Writes Code" vibe="Copies & pastes" eng="Types from memory" />
+                    <CmpRow label="Debugging" vibe="Panics, asks LLM" eng="Reads error, traces logic" />
+                    <CmpRow label="Without IDE" vibe="Completely lost" eng="Works comfortably" />
+                    <CmpRow label="LLM Reliance" vibe="Daily crutch" eng="Design tool only" />
+                    <CmpRow label="In Interviews" vibe="Can't explain code" eng="Walks through it cold" />
+                </Card>
+            </div>
+        </section>
+
+        {/* ══ FAQ ═════════════════════════════════════════════════ */}
+        <section id="faq" className="py-40 px-6" style={{ background: '#F5F5E8' }}>
+            <div className="max-w-3xl mx-auto">
+                <div className="mb-20">
+                    <Tag bg={NEO.blue} style={{ color: 'white' }}>FAQs</Tag>
+                    <h2
+                        className="text-5xl md:text-6xl font-black uppercase tracking-tight mt-4"
+                        style={{ color: NEO.black }}
+                    >
+                        Got Questions?<br />
+                        <span style={{ color: NEO.blue }}>We Have Intel.</span>
+                    </h2>
+                </div>
+
+                <div className="flex flex-col gap-5">
+                    <FAQItem delay={0} accent={NEO.yellow} q="Why is auto-complete disabled?" a="Because if your IDE can finish your sentences, you haven't internalized the syntax yet. We're building engineers who can write correct code in a bare text editor — no hand-holding required." />
+                    <FAQItem delay={0.1} accent={NEO.pink} q="What if I fail the Vibe Check?" a="You review the concept and try again. The AI tells you exactly which part of your explanation was shallow, vague, or incorrect. Failure is feedback — not punishment." />
+                    <FAQItem delay={0.2} accent={NEO.green} q="Is this for absolute beginners?" a="Yes. The diagnostic test calibrates your entry point. Beginners start from fundamentals; experienced developers advance through harder missions faster." />
+                    <FAQItem delay={0.3} accent={NEO.yellow} q="Why Groq-powered AI instead of others?" a="Sub-second inference speed at zero latency. Our Groq-powered backend provides high-performance code analysis that feels instant, with the deep reasoning power of a world-class LLM." />
+                    <FAQItem delay={0.4} accent={NEO.pink} q="How is XP calculated?" a="XP is awarded based on the depth, specificity, and accuracy of your Vibe Check responses — not your speed. A precise, conceptually rich explanation earns max XP." />
+                </div>
+            </div>
+        </section>
+
+        {/* ══ FINAL CTA ═══════════════════════════════════════════ */}
+        <section className="py-40 px-6" style={{ background: NEO.yellow, borderTop: NEO.border }}>
+            <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-16">
+                <div>
+                    <h2
+                        className="text-6xl md:text-8xl font-black uppercase tracking-tighter leading-[0.85]"
+                        style={{ color: NEO.black }}
+                    >
+                        Stop<br />Vibing.<br />
+                        <span style={{ color: NEO.pink, WebkitTextStroke: `3px ${NEO.black}` }}>Engineer_</span>
+                    </h2>
+                </div>
+                <div className="flex flex-col gap-6">
+                    <p className="text-base font-bold max-w-sm" style={{ color: '#333' }}>
+                        The engineers who win in the AI era are the ones who understand deeply — not the ones who prompt best.
+                    </p>
+                        <NeoBtn
+                            href="/login"
+                            bg="black"
+                            style={{ color: 'white', boxShadow: '8px 8px 0 rgba(0,0,0,0.3)', fontSize: '1.1rem', padding: '20px 48px' }}
+                        >
+                            Join the Mission — Free <ArrowRight size={20} strokeWidth={3} />
+                        </NeoBtn>
+                    <div className="flex gap-4">
+                        <Tag bg={NEO.pink}>Zero Crutches</Tag>
+                        <Tag bg={NEO.green}>AI-Verified</Tag>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {/* ══ FOOTER ══════════════════════════════════════════════ */}
+        <footer className="px-6 py-16" style={{ background: NEO.black, borderTop: NEO.border }}>
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
+                <div>
+                    <div className="flex items-center gap-3 mb-4">
+                        <div
+                            className="w-10 h-10 flex items-center justify-center font-black text-lg"
+                            style={{ background: NEO.yellow, border: '3px solid white' }}
+                        >
+                            W
+                        </div>
+                        <span className="font-black text-2xl uppercase text-white">Wirestack</span>
+                    </div>
+                    <p className="max-w-xs text-sm leading-relaxed" style={{ color: '#555' }}>
+                        The anti-vibe-coding platform. Built for engineers who refuse to stay shallow.
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-16 text-sm">
+                    <div>
+                        <p className="font-black text-white mb-4 uppercase text-xs tracking-widest">Platform</p>
+                        <div className="flex flex-col gap-3" style={{ color: '#555' }}>
+                            {['Diagnostic', 'Learning Room', 'Vibe Check'].map(l => (
+                                <a key={l} href="#" className="hover:text-white transition-colors no-underline font-semibold">{l}</a>
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <p className="font-black text-white mb-4 uppercase text-xs tracking-widest">Company</p>
+                        <div className="flex flex-col gap-3" style={{ color: '#555' }}>
+                            {['Philosophy', 'GitHub', 'Privacy'].map(l => (
+                                <a key={l} href="#" className="hover:text-white transition-colors no-underline font-semibold">{l}</a>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="text-right">
+                    <p className="text-xs text-gray-600 mb-2">© 2026 Wirestack Systems</p>
+                    <div className="flex items-center justify-end gap-2 text-xs" style={{ color: NEO.green }}>
+                        <Activity size={12} className="animate-pulse" />
+                        <span className="font-black uppercase tracking-widest">All Systems Nominal</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+        <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes marquee {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(-50%); }
+            }
+            .animate-marquee-slower {
+                animation: marquee 30s linear infinite;
+            }
+            .animate-marquee-slower:hover {
+                animation-play-state: paused;
+            }
+        ` }} />
+    </div>
+);
 
 export default LandingPage;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Loader2, Sparkles, Download, Code2, ExternalLink } from 'lucide-react';
 import EditorPanel from './EditorPanel';
@@ -12,55 +12,29 @@ const ProjectView = ({ embeddedJobId, onClose }) => {
     const [progress, setProgress] = useState(0);
     const [currentFile, setCurrentFile] = useState(null);
     const [error, setError] = useState(null);
+    const [agentStep, setAgentStep] = useState('Agent booting');
+    const initializedRef = useRef(false);
+    const requestInFlightRef = useRef(false);
 
     useEffect(() => {
-        let pollTimer;
+        let pollTimer = null;
 
-        // First, try to fetch completed files from S3 directly
-        const tryS3Fetch = async () => {
-            try {
-                const res = await fetch(`/api/ai/fetch-project/${jobId}`, { credentials: 'include' });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.files && data.files.length > 0) {
-                        console.log(`[ProjectView] Loaded ${data.files.length} files from S3`);
-                        setFiles({
-                            name: 'wirestack-generated-project',
-                            children: data.files
-                        });
-                        setProgress(100);
-                        setStatus('completed');
-                        return true; // S3 fetch succeeded
-                    }
-                }
-            } catch (err) {
-                console.warn('[ProjectView] S3 fetch failed, falling back to polling:', err.message);
-            }
-            return false; // S3 fetch failed, need to poll
-        };
-
-        const handleManualS3Pull = async () => {
-            const btn = document.getElementById('s3-pull-btn');
-            if(btn) {
-                const originalText = btn.innerText;
-                btn.innerText = 'Pulling...';
-                const success = await tryS3Fetch();
-                if(!success) {
-                    btn.innerText = 'Not Found';
-                    setTimeout(() => btn.innerText = originalText, 2000);
-                }
-            }
-        };
-
-        // Attach to window so we can call it outside the useEffect scope easily, or better yet, make an inline handler
-        window.forceS3Pull = handleManualS3Pull;
+        // React StrictMode mounts twice in dev. Ensure a single poll loop.
+        if (initializedRef.current) {
+            return undefined;
+        }
+        initializedRef.current = true;
 
         const checkStatus = async () => {
+            if (requestInFlightRef.current) return;
+            requestInFlightRef.current = true;
+
             try {
                 const res = await fetch(`/api/ai/job-status/${jobId}`, { credentials: 'include' });
                 if (!res.ok) throw new Error('Failed to fetch project status');
 
                 const data = await res.json();
+                if (data.currentStep) setAgentStep(data.currentStep);
 
                 if (data.files && data.files.length > 0) {
                     // Wrap flat files into the tree format EditorPanel expects
@@ -96,21 +70,19 @@ const ProjectView = ({ embeddedJobId, onClose }) => {
                 setError(err.message);
                 setStatus('error');
                 clearInterval(pollTimer);
+            } finally {
+                requestInFlightRef.current = false;
             }
         };
 
-        // Try S3 first, then fall back to polling
-        const init = async () => {
-            const loaded = await tryS3Fetch();
-            if (!loaded) {
-                checkStatus();
-                pollTimer = setInterval(checkStatus, 3000);
-            }
+        checkStatus();
+        pollTimer = setInterval(checkStatus, 4000);
+
+        return () => {
+            if (pollTimer) clearInterval(pollTimer);
+            initializedRef.current = false;
+            requestInFlightRef.current = false;
         };
-
-        init();
-
-        return () => clearInterval(pollTimer);
     }, [jobId]);
 
     const handleDownloadZip = async () => {
@@ -175,7 +147,7 @@ const ProjectView = ({ embeddedJobId, onClose }) => {
 
                 {/* The Editor Panel */}
                 <div className="flex-1 flex overflow-hidden">
-                    <EditorPanel files={files || []} generationStatus={status === 'generating' ? `Generating... ${progress}%` : null} jobId={jobId} />
+                    <EditorPanel files={files || []} generationStatus={status === 'generating' ? `Agent: ${agentStep} • ${progress}%` : null} jobId={jobId} />
                 </div>
             </main>
 

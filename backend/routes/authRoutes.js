@@ -13,8 +13,8 @@ router.get('/google/callback',
     passport.authenticate('google', { failureRedirect: '/login' }),
     (req, res) => {
         const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
-        console.log(`📡 Redirecting to Frontend: ${frontendUrl}/canvas (Source: ${process.env.FRONTEND_URL ? 'ENV' : 'DEFAULT'})`);
-        res.redirect(`${frontendUrl}/canvas`);
+        console.log(`📡 Redirecting to Frontend: ${frontendUrl}/learn (Source: ${process.env.FRONTEND_URL ? 'ENV' : 'DEFAULT'})`);
+        res.redirect(`${frontendUrl}/learn`);
     }
 );
 

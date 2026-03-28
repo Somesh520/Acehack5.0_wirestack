@@ -19,7 +19,7 @@ import { workflowNodeTypes } from './WorkflowNode';
 import DeveloperNode from './DeveloperNode';
 import GamifiedNode from './GamifiedNode';
 import { PIPELINE_NODES, PIPELINE_EDGES, PIPELINE_STEPS } from './pipelineConfig';
-import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut, BarChart3, FolderUp, Github, Trash } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Settings, Code2, Box, Sparkles, Loader2, Play, Plus, FolderOpen, LogOut, BarChart3, FolderUp, Github, Trash, Lock } from 'lucide-react';
 
 const initialNodes = JSON.parse(localStorage.getItem('ws_nodes')) || [];
 const initialEdges = JSON.parse(localStorage.getItem('ws_edges')) || [];
@@ -115,6 +115,8 @@ const Workspace = () => {
     const [repoUrl, setRepoUrl] = useState('');
     const [selectedModel, setSelectedModel] = useState('nvidia'); // Use Nvidia Minimax as default
     const [systemDesign, setSystemDesign] = useState(null); // Dynamic steps from AI
+    const [isArchitectureLocked, setIsArchitectureLocked] = useState(false);
+
 
     // Create a structural fingerprint of the current architecture
     // We only care about node types, tech choices, and edges - NOT positions.
@@ -197,6 +199,7 @@ const Workspace = () => {
             setEdges([]);
             setChatHistory([{ role: 'assistant', content: "Hi! I am WireStack's AI architect. Need a system design? Describe your idea." }]);
             setSystemDesign(null);
+            setIsArchitectureLocked(false);
             setLastJobId(null);
             lastFingerprint.current = '#';
             setIsEditorOpen(false);
@@ -244,8 +247,9 @@ const Workspace = () => {
         setNodes(wsNodes);
         setEdges(wsEdges);
         setLastJobId(ws.last_job_id || null);
-        setSystemDesign(null); // Clear previous system design suggestions
-        setIsEditorOpen(false); // Close editor panel when switching workspaces
+        setSystemDesign(null); 
+        setIsArchitectureLocked(false);
+        setIsEditorOpen(false); 
 
         // Sync fingerprint to prevent clearing lastJobId on initial load of this workspace
         const ndsFinger = wsNodes.map(n => `${n.id}:${n.data.selectedOption || ''}:${n.type}`).sort().join('|');
@@ -906,14 +910,24 @@ const Workspace = () => {
                             >
                                 + NEW
                             </button>
-                            {allCompleted && (
+                            {allCompleted && !isArchitectureLocked && (
+                                <button
+                                    onClick={() => setIsArchitectureLocked(true)}
+                                    className="flex items-center gap-2 px-6 py-1.5 border-3 border-black bg-[#FFD700] font-black text-xs uppercase shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all animate-bounce"
+                                >
+                                    <Lock size={14} className="text-black" />
+                                    LOCK MISSIONS & UNLOCK CODE
+                                </button>
+                            )}
+
+                            {isArchitectureLocked && (
                                 <button
                                     onClick={() => lastJobId ? window.dispatchEvent(new CustomEvent('open-code-editor')) : handleGenerateProject()}
                                     disabled={isGenerating}
-                                    className="flex items-center gap-2 px-6 py-1.5 border-3 border-black bg-[#FFD700] font-black text-xs uppercase shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-75 animate-bounce"
+                                    className="flex items-center gap-2 px-6 py-1.5 border-3 border-black bg-[#33FF66] font-black text-xs uppercase shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-75"
                                 >
                                     {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : (lastJobId ? <Code2 className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />)}
-                                    {lastJobId ? "View Code" : "Generate Final Code"}
+                                    {lastJobId ? "VIEW MISSION OUTPUT" : "GENERATE FINAL APP 🚀"}
                                 </button>
                             )}
                         </div>
@@ -949,6 +963,7 @@ const Workspace = () => {
                                 node={selectedNode}
                                 onClose={() => setSelectedNode(null)}
                                 onSelectOption={handleSelectOption}
+                                isLocked={isArchitectureLocked}
                             />
                         )}
 
@@ -985,6 +1000,7 @@ const Workspace = () => {
                         </div>
                     </div>
                 )}
+
             </div>
         );
     }

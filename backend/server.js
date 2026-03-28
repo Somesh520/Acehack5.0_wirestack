@@ -10,10 +10,12 @@ const configurePassport = require('./config/passport');
 const authRoutes = require('./routes/authRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const workspaceRoutes = require('./routes/workspaceRoutes');
+const learningRoutes = require('./routes/learningRoutes');
 const MongoStore = require('connect-mongo').default;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const VERBOSE_REQUEST_LOGS = process.env.VERBOSE_REQUEST_LOGS === 'true';
 
 // Trust proxy for session cookies to work behind Render/Vercel load balancers
 app.set('trust proxy', true);
@@ -49,26 +51,30 @@ app.use(session({
     }
 }));
 
-// Cookie debugging middleware
-app.use((req, res, next) => {
-    console.log(`[COOKIE IN] -> ${req.headers.cookie ? 'Present' : 'None'} | Origin: ${req.headers.origin || req.headers.referer || 'Unknown'}`);
-    const originalSend = res.send;
-    res.send = function () {
-        console.log(`[COOKIE OUT] <- ${res.get('Set-Cookie') || 'None'}`);
-        return originalSend.apply(res, arguments);
-    };
-    next();
-});
+// Cookie debugging middleware (optional)
+if (VERBOSE_REQUEST_LOGS) {
+    app.use((req, res, next) => {
+        console.log(`[COOKIE IN] -> ${req.headers.cookie ? 'Present' : 'None'} | Origin: ${req.headers.origin || req.headers.referer || 'Unknown'}`);
+        const originalSend = res.send;
+        res.send = function () {
+            console.log(`[COOKIE OUT] <- ${res.get('Set-Cookie') || 'None'}`);
+            return originalSend.apply(res, arguments);
+        };
+        next();
+    });
+}
 
 // Passport Config
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Request Logger (moved after session/passport for diagnostics)
-app.use((req, res, next) => {
-    console.log(`[PID:${process.pid}] ${new Date().toISOString()} - ${req.method} ${req.url} - Session:${req.sessionID} - User:${req.user ? req.user.email : 'None'}`);
-    next();
-});
+// Request Logger (optional)
+if (VERBOSE_REQUEST_LOGS) {
+    app.use((req, res, next) => {
+        console.log(`[PID:${process.pid}] ${new Date().toISOString()} - ${req.method} ${req.url} - Session:${req.sessionID} - User:${req.user ? req.user.email : 'None'}`);
+        next();
+    });
+}
 
 configurePassport(passport);
 
@@ -76,6 +82,7 @@ configurePassport(passport);
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/workspace', workspaceRoutes);
+app.use('/api/v1', learningRoutes);  // Anti-Vibe-Coding Learning Engine
 
 app.get('/', (req, res) => {
     res.send('WireStack Backend Engine is running v4.0.0');

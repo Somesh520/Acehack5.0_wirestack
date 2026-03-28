@@ -3,11 +3,12 @@ const Groq = require('groq-sdk');
 const OpenAI = require('openai');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const openai = new OpenAI({
-    apiKey: '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',
-    baseURL: 'https://integrate.api.nvidia.com/v1',
-});
+const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
+const openai = process.env.NVIDIA_API_KEY
+    ? new OpenAI({ apiKey: process.env.NVIDIA_API_KEY, baseURL: 'https://integrate.api.nvidia.com/v1' })
+    : null;
+const OLLAMA_ENABLED = false; // Ollama disabled as per request
+const VERBOSE_AI_LOGS = process.env.VERBOSE_AI_LOGS === 'true';
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -23,14 +24,18 @@ function withTimeout(promise, ms, label) {
 }
 
 async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2, preferredModel = null) {
-    const modelsToTry = [
-        { provider: 'nvidia', modelId: 'minimaxai/minimax-m2.5', engineName: 'NVIDIA (Minimax M2.5)' },
+    const cloudModels = [
         { provider: 'groq', modelId: 'llama-3.3-70b-versatile', engineName: 'Groq (Llama 3.3 70B)' },
         { provider: 'groq', modelId: 'llama-3.1-8b-instant', engineName: 'Groq (Llama 3.1 8B)' },
+        { provider: 'nvidia', modelId: 'minimaxai/minimax-m2.5', engineName: 'NVIDIA (Minimax M2.5)' },
         { provider: 'gemini', modelId: 'gemini-2.5-flash', engineName: 'Gemini (2.5 Flash)' },
         { provider: 'gemini', modelId: 'gemini-1.5-flash', engineName: 'Gemini (1.5 Flash)' },
         { provider: 'gemini', modelId: 'gemini-1.5-pro', engineName: 'Gemini (1.5 Pro)' }
     ];
+
+    const modelsToTry = cloudModels;
+
+    console.log(`🧠 AI REQUEST | Mode: ${preferredModel || 'AUTO'} | Providers: ${modelsToTry.map(m => m.provider).join(' -> ')}`);
 
     let lastError = null;
 
@@ -39,8 +44,10 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
             if (preferredModel && preferredModel !== modelOpt.provider) continue;
 
             try {
-                console.log(`🤖 Trying ${modelOpt.engineName} (attempt ${attempt}/${retries})`);
-                if (modelOpt.provider === 'nvidia') {
+                if (VERBOSE_AI_LOGS) {
+                    console.log(`🤖 Trying ${modelOpt.engineName} (attempt ${attempt}/${retries})`);
+                }
+                if (modelOpt.provider === 'nvidia' && openai) {
                     const completion = await withTimeout(openai.chat.completions.create({
                         model: modelOpt.modelId,
                         messages: [
@@ -89,7 +96,9 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
                     if (match && match[1]) {
                         waitSeconds = parseFloat(match[1]) + 1; // Parse exact wait time and add 1s buffer
                     }
-                    console.log(`🐌 Rate Limited! Enforcing mandatory ${waitSeconds.toFixed(1)}s cooldown...`);
+                    if (VERBOSE_AI_LOGS) {
+                        console.log(`🐌 Rate Limited! Enforcing mandatory ${waitSeconds.toFixed(1)}s cooldown...`);
+                    }
                     await sleep(waitSeconds * 1000);
                 }
             }
@@ -97,7 +106,9 @@ async function callLLM(systemPrompt, userMessage, maxTokens = 4000, retries = 2,
 
         if (attempt < retries) {
             const delay = Math.pow(2, attempt) * 1000;
-            console.log(`⏳ Retrying all models in ${delay / 1000}s...`);
+            if (VERBOSE_AI_LOGS) {
+                console.log(`⏳ Retrying all models in ${delay / 1000}s...`);
+            }
             await sleep(delay);
         }
     }

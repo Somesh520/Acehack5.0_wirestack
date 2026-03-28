@@ -1,8 +1,0 @@
-{
-  "name": "wirestack-sandbox-runner",
-  "version": "1.0.0",
-  "description": "Sandbox runner that pulls AI-generated code from S3 and runs it",
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.1014.0"
-  }
-}

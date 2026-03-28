@@ -47,9 +47,9 @@ const AIChatPanel = ({ onSuggestSystemDesign, messages = [], setMessages = () =>
                 credentials: 'include'
             });
 
-            const data = await res.json();
             const reply = data.reply || 'Oops! Something went wrong.';
             const thoughtProcess = data.thoughtProcess || null;
+            const engine = data.engine || 'AI';
 
             // Parse system design from AI response
             const design = parseSystemDesign(reply);
@@ -57,7 +57,7 @@ const AIChatPanel = ({ onSuggestSystemDesign, messages = [], setMessages = () =>
                 onSuggestSystemDesign(design);
             }
 
-            setMessages(prev => [...prev, { role: 'assistant', content: reply, thoughtProcess }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: reply, thoughtProcess, engine }]);
         } catch (err) {
             console.error('AI Chat Error:', err);
             setMessages(prev => [...prev, {
@@ -97,6 +97,17 @@ const AIChatPanel = ({ onSuggestSystemDesign, messages = [], setMessages = () =>
                 </div>
                 <div className={`flex-1 min-w-0 ${isBot ? '' : 'flex flex-col items-end'}`}>
                     <div className={`inline-block text-left p-4 border-4 border-black text-xs font-black leading-relaxed shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${isBot ? 'bg-white' : 'bg-[#FFD700]'}`}>
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-black uppercase text-gray-400">
+                                {isBot ? (msg.engine || 'AI Architect') : 'You'}
+                            </span>
+                            {isBot && (msg.engine?.includes('Ollama') || msg.engine?.includes('Local')) && (
+                                <span className="bg-[#33FF66] text-black px-1 text-[9px] font-black uppercase flex items-center gap-1">
+                                    <Zap size={10} fill="black" /> LOCAL AI active
+                                </span>
+                            )}
+                        </div>
+
                         {msg.thoughtProcess && (
                             <div className="mb-4 p-3 bg-gray-100 border-2 border-black rounded-none text-[10px] text-gray-600 font-mono">
                                 <div className="flex items-center gap-2 font-black text-black mb-2 uppercase tracking-tighter border-b-2 border-black pb-1">
