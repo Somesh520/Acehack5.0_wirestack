@@ -9,7 +9,7 @@ const connectDB = require('./config/db');
 const configurePassport = require('./config/passport');
 const authRoutes = require('./routes/authRoutes');
 const aiRoutes = require('./routes/aiRoutes');
-const workspaceRoutes = require('./routes/workspaceRoutes');
+
 const learningRoutes = require('./routes/learningRoutes');
 const MongoStore = require('connect-mongo').default;
 
@@ -81,7 +81,7 @@ configurePassport(passport);
 // --- Routes ---
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
-app.use('/api/workspace', workspaceRoutes);
+
 app.use('/api/v1', learningRoutes);  // Anti-Vibe-Coding Learning Engine
 
 app.get('/', (req, res) => {
