@@ -24,14 +24,84 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 
 // GET /api/auth/google/callback
 // Google OAuth callback URL after successful/failed login
-router.get('/google/callback',
-    passport.authenticate('google', { failureRedirect: '/login' }),
-    (req, res) => {
-        const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
-        console.log(`📡 Redirecting to Frontend: ${frontendUrl}/learn (Source: ${process.env.FRONTEND_URL ? 'ENV' : 'DEFAULT'})`);
-        res.redirect(`${frontendUrl}/learn`);
-    }
-);
+router.get('/google/callback', (req, res, next) => {
+    const frontendUrl = frontendBase();
+        const successUrl = `${frontendUrl}/learn`;
+        const failureUrl = `${frontendUrl}/login`;
+
+        function sendBridgePage(targetUrl, message) {
+                const safeUrl = JSON.stringify(targetUrl);
+                const safeMessage = String(message || 'Redirecting...')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                return res.send(`<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>WireStack OAuth</title>
+        <style>
+            body { margin: 0; font-family: Arial, sans-serif; background: #f7f7f7; color: #111; display: grid; min-height: 100vh; place-items: center; }
+            .card { background: #fff; border: 3px solid #111; box-shadow: 6px 6px 0 #111; padding: 24px; max-width: 420px; width: calc(100% - 32px); text-align: center; }
+            a { color: inherit; }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>${safeMessage}</h1>
+            <p>If the page does not continue automatically, use the link below.</p>
+            <p><a id="continueLink" href="${targetUrl}">Continue</a></p>
+        </div>
+        <script>
+            (function () {
+                var target = ${safeUrl};
+                try {
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.location.replace(target);
+                        window.close();
+                        return;
+                    }
+                } catch (err) {}
+
+                try {
+                    if (window.top && window.top !== window) {
+                        window.top.location.replace(target);
+                        return;
+                    }
+                } catch (err) {}
+
+                window.location.replace(target);
+            })();
+        </script>
+    </body>
+</html>`);
+        }
+
+    passport.authenticate('google', (err, user, info) => {
+        if (err) {
+            console.error('❌ Google OAuth callback error:', err.message || err);
+                        return sendBridgePage(failureUrl + '?google=error', 'Google sign-in failed');
+        }
+
+        if (!user) {
+            const reason = info?.message ? `&reason=${encodeURIComponent(info.message)}` : '';
+                        return sendBridgePage(failureUrl + `?google=denied${reason}`, 'Google sign-in was not completed');
+        }
+
+        req.logIn(user, (loginErr) => {
+            if (loginErr) {
+                console.error('❌ Google OAuth session error:', loginErr.message || loginErr);
+                                return sendBridgePage(failureUrl + '?google=session_error', 'Google sign-in session could not be created');
+            }
+
+            console.log(`📡 Redirecting to Frontend: ${frontendUrl}/learn (Source: ${process.env.FRONTEND_URL ? 'ENV' : 'DEFAULT'})`);
+                        return sendBridgePage(successUrl, 'Signed in successfully');
+        });
+    })(req, res, next);
+});
 
 // GET /api/auth/me
 // Check if user is currently authenticated

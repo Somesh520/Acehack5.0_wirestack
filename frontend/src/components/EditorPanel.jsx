@@ -669,7 +669,7 @@ const EditorPanel = ({ files, generationStatus, jobId }) => {
                                 title="Preview"
                                 srcDoc={getPreviewHtml()}
                                 className="w-full h-full border-none"
-                                sandbox="allow-scripts allow-modals"
+                                sandbox="allow-scripts allow-modals allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                             />
                         </div>
                     )}

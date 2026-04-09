@@ -10,6 +10,16 @@ import { Chrome, ArrowRight, ShieldCheck, Mail, Lock, Layers, Zap, Command, User
 const LoginPage = () => {
   const [isHovered, setIsHovered] = useState(false);
 
+  const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  const handleGoogleLogin = () => {
+    const authUrl = apiBase ? `${apiBase}/api/auth/google` : '/api/auth/google';
+    if (window.top && window.top !== window) {
+      window.top.location.href = authUrl;
+      return;
+    }
+    window.location.href = authUrl;
+  };
+
   const title = 'Welcome Back';
   const subtitle = 'Sign in to continue your mission';
 
@@ -75,8 +85,9 @@ const LoginPage = () => {
                 }}
               />
 
-              <a
-                href="/api/auth/google"
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
                 className="relative w-full h-16 bg-white hover:bg-white border-4 border-black text-black flex items-center justify-center gap-4 font-black text-xl uppercase tracking-wider no-underline transition-all duration-300 ease-out group active:scale-95 active:translate-x-1 active:translate-y-1"
@@ -92,7 +103,7 @@ const LoginPage = () => {
                 />
                 <span>GOOGLE_ID</span>
                 <ArrowRight size={20} strokeWidth={4} className="group-hover:translate-x-2 transition-transform" />
-              </a>
+              </button>
             </div>
 
             <div className="flex items-center gap-4 pt-4">
