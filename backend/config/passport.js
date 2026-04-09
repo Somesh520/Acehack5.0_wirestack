@@ -8,12 +8,7 @@ function resolveGoogleCallbackURL() {
         return explicitCallbackUrl.replace(/\/$/, '');
     }
 
-    const backendBaseUrl = String(process.env.BACKEND_URL || '').trim().replace(/\/$/, '');
-    if (backendBaseUrl) {
-        return `${backendBaseUrl}/api/auth/google/callback`;
-    }
-
-    return `http://localhost:${process.env.PORT || 3000}/api/auth/google/callback`;
+    return '/api/auth/google/callback';
 }
 
 module.exports = function configureGooglePassport(passportInstance) {
