@@ -109,6 +109,10 @@ export default function DiagnosticTest({ stack, onComplete, onSkip }) {
             credentials: 'include'
         })
             .then(res => {
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    throw new Error('Not authenticated');
+                }
                 if (!res.ok) throw new Error('Failed to generate test');
                 return res.json();
             })
@@ -180,6 +184,11 @@ export default function DiagnosticTest({ stack, onComplete, onSkip }) {
                 body: JSON.stringify({ answers: apiAnswers }),
                 credentials: 'include'
             });
+
+            if (res.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
 
             if (!res.ok) throw new Error('Submit failed');
             const data = await res.json();

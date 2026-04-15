@@ -149,9 +149,15 @@ const Workspace = () => {
 
     useEffect(() => {
         fetch('/api/auth/me', { credentials: 'include' })
-            .then(res => res.json())
+            .then(res => {
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return null;
+                }
+                return res.json();
+            })
             .then(data => {
-                if (data.authenticated) {
+                if (data && data.authenticated) {
                     setUser(data.user);
                 }
             })

@@ -60,8 +60,16 @@ export default function LearnPage() {
     // Check auth on mount
     useEffect(() => {
         fetch('/api/auth/me', { credentials: 'include' })
-            .then(res => res.json())
+            .then(res => {
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return null;
+                }
+                return res.json();
+            })
             .then(data => {
+                if (!data) return;
+                
                 if (data.authenticated) {
                     setUser(data.user);
 
