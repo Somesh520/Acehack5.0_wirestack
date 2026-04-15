@@ -94,11 +94,14 @@ router.get('/google/callback', (req, res, next) => {
         req.logIn(user, (loginErr) => {
             if (loginErr) {
                 console.error('❌ Google OAuth session error:', loginErr.message || loginErr);
-                                return sendBridgePage(failureUrl + '?google=session_error', 'Google sign-in session could not be created');
+                return sendBridgePage(failureUrl + '?google=session_error', 'Google sign-in session could not be created');
             }
 
-            console.log(`📡 Redirecting to Frontend: ${frontendUrl}/learn (Source: ${process.env.FRONTEND_URL ? 'ENV' : 'DEFAULT'})`);
-                        return sendBridgePage(successUrl, 'Signed in successfully');
+            req.session.save((saveErr) => {
+                if (saveErr) console.error('❌ Session save error:', saveErr);
+                console.log(`📡 Redirecting to Frontend: ${frontendUrl}/learn (Source: ${process.env.FRONTEND_URL ? 'ENV' : 'DEFAULT'})`);
+                return sendBridgePage(successUrl, 'Signed in successfully');
+            });
         });
     })(req, res, next);
 });
@@ -167,7 +170,10 @@ router.get('/github/connect', requireAuth, async (req, res) => {
         state,
     });
 
-    return res.redirect(`https://github.com/login/oauth/authorize?${params.toString()}`);
+    req.session.save((err) => {
+        if (err) console.error('Session save error in github/connect:', err);
+        return res.redirect(`https://github.com/login/oauth/authorize?${params.toString()}`);
+    });
 });
 
 // GET /api/auth/github/callback
